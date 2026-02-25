@@ -1,0 +1,12 @@
+[
+  {
+    "ContainingType": "LeaveOTManagement.Controllers.LeaveController",
+    "Method": "GetLeaves",
+    "RelativePath": "api/Leave",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  }
+]
