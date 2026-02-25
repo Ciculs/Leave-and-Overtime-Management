@@ -1,17 +1,25 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import LeaveView from '../views/LeaveView.vue'
+import { createRouter, createWebHistory } from "vue-router";
 
 const routes = [
   {
-    path: '/leave',
-    name: 'Leave',
-    component: LeaveView
-  }
-]
+    path: "/",
+    redirect: "/holidays",
+  },
+  {
+    path: "/holidays",
+    component: () => import("../views/HolidayList.vue"),
+  },
+  {
+    path: "/leave",
+    component: {
+      template: "<h2>Leave Page</h2>",
+    },
+  },
+];
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
-})
+  routes,
+});
 
-export default router
+export default router;

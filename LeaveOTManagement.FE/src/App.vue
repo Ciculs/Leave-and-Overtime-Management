@@ -1,11 +1,11 @@
-<script setup></script>
-
 <template>
-  <router-view />
+  <DashboardLayout />
 </template>
 
 <script>
-export default {};
-</script>
+import DashboardLayout from "@/layouts/DashboardLayout.vue";
 
-<style scoped></style>
+export default {
+  components: { DashboardLayout },
+};
+</script>
