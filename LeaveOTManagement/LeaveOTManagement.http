@@ -1,0 +1,6 @@
+@LeaveOTManagement_HostAddress = http://localhost:5291
+
+GET {{LeaveOTManagement_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
