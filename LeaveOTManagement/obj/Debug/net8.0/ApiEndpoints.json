@@ -1,0 +1,50 @@
+[
+  {
+    "ContainingType": "LeaveOTManagement.Controllers.LeaveController",
+    "Method": "GetLeaveBalance",
+    "RelativePath": "api/Leave/balance/{userId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LeaveOTManagement.Controllers.LeaveController",
+    "Method": "GetLeaveList",
+    "RelativePath": "api/Leave/list/{userId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LeaveOTManagement.Controllers.LeaveController",
+    "Method": "CreateLeaveRequest",
+    "RelativePath": "api/Leave/request",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "request",
+        "Type": "LeaveOTManagement.Controllers.LeaveRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  }
+]
