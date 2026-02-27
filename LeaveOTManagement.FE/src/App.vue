@@ -1,11 +1,16 @@
 <template>
-  <DashboardLayout />
+  <router-view />
 </template>
 
-<script>
-import DashboardLayout from "@/layouts/DashboardLayout.vue";
-
-export default {
-  components: { DashboardLayout },
-};
-</script>
+<style>
+/* Reset global để không bị hở mép */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f4f7fe;
+}
+</style>

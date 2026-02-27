@@ -1,48 +1,85 @@
 <template>
   <aside class="sidebar">
-    <div class="logo">LeaveOT</div>
+    <div class="brand">LeaveOT</div>
 
-    <router-link to="/holidays" class="menu">
-      📅 Holidays
-    </router-link>
+    <nav class="nav-menu">
+      <router-link to="/dashboard" class="nav-item">📊 Dashboard</router-link>
 
-    <router-link to="/leave" class="menu">
-      📝 Leave
-    </router-link>
+      <template v-if="user.role === 'Employee'">
+        <router-link to="/leave/new" class="nav-item">📝 Submit Leave</router-link>
+        <router-link to="/ot/new" class="nav-item">⏱️ Submit OT</router-link>
+        <router-link to="/my-requests" class="nav-item">📁 My Requests</router-link>
+      </template>
+
+      <template v-if="user.role === 'Manager'">
+        <router-link to="/manager/approvals" class="nav-item">✅ Team Approvals</router-link>
+        <router-link to="/manager/calendar" class="nav-item">📅 Team Calendar</router-link>
+      </template>
+
+      <template v-if="user.role === 'HR'">
+        <router-link to="/holidays" class="nav-item">📅 Holiday Calendar</router-link>
+        <router-link to="/reports" class="nav-item">📈 Reporting & Export</router-link>
+      </template>
+    </nav>
   </aside>
 </template>
 
+<script>
+export default {
+  name: "AppSidebar",
+  data() {
+    return {
+      // Giả lập User đang đăng nhập. 
+      // Sau này bạn sẽ lấy giá trị này từ Pinia store hoặc localStorage
+      user: {
+        name: "Admin",
+        role: "HR" // Thử đổi thành 'Employee' hoặc 'Manager' để thấy menu thay đổi
+      }
+    };
+  }
+};
+</script>
+
 <style scoped>
 .sidebar {
-  width: 230px;
-  background: linear-gradient(180deg, #1e293b, #0f172a);
-  color: white;
-  padding: 25px 15px;
+  width: 260px;
+  background: white;
+  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 
-.logo {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 30px;
+.brand {
+  padding: 30px 24px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #2b3674;
 }
 
-.menu {
-  color: #cbd5e1;
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 12px;
+}
+
+.nav-item {
+  padding: 12px 16px;
   text-decoration: none;
-  padding: 10px 12px;
-  border-radius: 6px;
-  margin-bottom: 8px;
-  transition: 0.2s;
+  color: #a3aed0;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: 0.3s;
 }
 
-.menu:hover {
-  background: rgba(255, 255, 255, 0.1);
+.nav-item:hover {
+  background: #f4f7fe;
+  color: #2b3674;
 }
 
 .router-link-active {
-  background: #1abc9c;
-  color: white;
+  background: #4318ff !important;
+  color: white !important;
 }
 </style>

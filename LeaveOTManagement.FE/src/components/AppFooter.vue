@@ -1,16 +1,14 @@
 <template>
   <footer class="footer">
-    © 2026 LeaveOT System
+    <p>© 2026 LeaveOT System. All rights reserved.</p>
   </footer>
 </template>
 
 <style scoped>
 .footer {
-  height: 40px;
-  background: white;
+  padding: 20px 0;
   text-align: center;
-  line-height: 40px;
-  font-size: 13px;
-  color: #777;
+  color: #707eae;
+  font-size: 14px;
 }
 </style>
