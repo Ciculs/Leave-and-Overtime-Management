@@ -282,3 +282,27 @@ INSERT INTO AuditLogs
 (EntityId, EntityType, Action, OldValue, NewValue, ActionBy)
 VALUES
 (1,'Leave','Create',NULL,'Leave created','3');
+
+CREATE TABLE Accounts (
+    Id INT IDENTITY PRIMARY KEY,
+    UserId INT NOT NULL UNIQUE,
+    Username NVARCHAR(100) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    PasswordSalt NVARCHAR(255) NULL,
+    IsLocked BIT DEFAULT 0,
+    FailedLoginCount INT DEFAULT 0,
+    LastLoginAt DATETIME2 NULL,
+    CreatedAt DATETIME2 DEFAULT SYSDATETIME(),
+
+    FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+CREATE INDEX IX_Accounts_UserId ON Accounts(UserId);
+
+INSERT INTO Accounts (UserId, Username, PasswordHash)
+VALUES
+(1,'manager','HASHED_PASSWORD'),
+(2,'hr','HASHED_PASSWORD'),
+(3,'a','HASHED_PASSWORD'),
+(4,'b','HASHED_PASSWORD'),
+(5,'c','HASHED_PASSWORD');
