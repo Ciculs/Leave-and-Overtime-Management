@@ -1,27 +1,58 @@
-import { createRouter, createWebHistory } from "vue-router";
-import DashboardLayout from "../layouts/DashboardLayout.vue"; // Kiểm tra kỹ đường dẫn file
+import { createRouter, createWebHistory } from "vue-router"
+import DashboardLayout from "../layouts/DashboardLayout.vue"
+
+import Login from "../views/Login.vue"
+import DashboardAdmin from "../views/DashboardAdmin.vue"
+import DashboardManager from "../views/DashboardManager.vue"
+import DashboardEmployee from "../views/DashboardEmployee.vue"
 
 const routes = [
   {
+    path: "/login",
+    component: Login
+  },
+  {
     path: "/",
-    component: DashboardLayout, // THẰNG CHA (Chứa Sidebar/Header)
-    redirect: "/dashboard",
+    component: DashboardLayout,
+    meta: { requiresAuth: true },
     children: [
       {
-        path: "dashboard",
-        component: () => import("../views/Dashboard.vue") // THẰNG CON 1
+        path: "admin",
+        component: DashboardAdmin,
+        meta: { role: "Admin" }
       },
       {
-        path: "holidays",
-        component: () => import("../views/HolidayList.vue") // THẰNG CON 2
+        path: "manager",
+        component: DashboardManager,
+        meta: { role: "Manager" }
+      },
+      {
+        path: "employee",
+        component: DashboardEmployee,
+        meta: { role: "Employee" }
       }
     ]
   }
-];
+]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
-});
+  routes
+})
 
-export default router;
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem("token")
+  const role = localStorage.getItem("role")
+
+  if (to.matched.some(record => record.meta.requiresAuth) && !token) {
+    return next("/login")
+  }
+
+  if (to.meta.role && to.meta.role !== role) {
+    return next("/login")
+  }
+
+  next()
+})
+
+export default router

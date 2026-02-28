@@ -33,7 +33,7 @@ export default {
       // Sau này bạn sẽ lấy giá trị này từ Pinia store hoặc localStorage
       user: {
         name: "Admin",
-        role: "HR" // Thử đổi thành 'Employee' hoặc 'Manager' để thấy menu thay đổi
+        role: "Employee" // Thử đổi thành 'Employee' hoặc 'Manager' để thấy menu thay đổi
       }
     };
   }
