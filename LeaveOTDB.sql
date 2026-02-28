@@ -285,24 +285,19 @@ VALUES
 
 CREATE TABLE Accounts (
     Id INT IDENTITY PRIMARY KEY,
-    UserId INT NOT NULL UNIQUE,
     Username NVARCHAR(100) NOT NULL UNIQUE,
     PasswordHash NVARCHAR(255) NOT NULL,
-    PasswordSalt NVARCHAR(255) NULL,
+    UserId INT NOT NULL,
     IsLocked BIT DEFAULT 0,
-    FailedLoginCount INT DEFAULT 0,
     LastLoginAt DATETIME2 NULL,
-    CreatedAt DATETIME2 DEFAULT SYSDATETIME(),
 
     FOREIGN KEY (UserId) REFERENCES Users(Id)
 );
 
-CREATE INDEX IX_Accounts_UserId ON Accounts(UserId);
-
-INSERT INTO Accounts (UserId, Username, PasswordHash)
+INSERT INTO Accounts (Username, PasswordHash, UserId)
 VALUES
-(1,'manager','HASHED_PASSWORD'),
-(2,'hr','HASHED_PASSWORD'),
-(3,'a','HASHED_PASSWORD'),
-(4,'b','HASHED_PASSWORD'),
-(5,'c','HASHED_PASSWORD');
+('manager','123456',1),
+('hr','123456',2),
+('a','123456',3),
+('b','123456',4),
+('c','123456',5);

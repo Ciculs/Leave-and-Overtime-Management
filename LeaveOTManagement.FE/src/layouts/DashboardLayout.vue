@@ -10,9 +10,6 @@
         <router-link to="/dashboard" class="nav-item">
           <span class="icon">📊</span> Dashboard
         </router-link>
-        <router-link to="/holidays" class="nav-item">
-          <span class="icon">📅</span> Holidays
-        </router-link>
       </nav>
     </aside>
 
@@ -22,20 +19,32 @@
           <div class="breadcrumb">Dashboard / Directory</div>
           <h2>Directory Dashboard</h2>
         </div>
-        <div class="header-right">
-          <div class="search-box">
-            🔍 <input type="text" placeholder="Search here..." />
-          </div>
-          <div class="user-profile">
-            <span class="notif">🔔</span>
-            <div class="avatar"></div>
-          </div>
-        </div>
+       <div class="header-right">
+  <div class="user-info">
+    <div class="avatar-circle">
+  <svg xmlns="http://www.w3.org/2000/svg" 
+       width="20" height="20" 
+       fill="currentColor" 
+       viewBox="0 0 16 16">
+    <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+    <path d="M14 14s-1-4-6-4-6 4-6 4h12z"/>
+  </svg>
+</div>
+    <div class="user-text">
+      <span class="name">{{ username }}</span>
+      <span class="role">{{ role }}</span>
+    </div>
+  </div>
+
+  <button class="logout-btn" @click="logout">
+    Logout
+  </button>
+</div>
       </header>
 
       <main class="content-area">
         <div class="blue-banner">
-          <h1>Leave & Overtime Management Platform</h1>
+          <h2>Leave & Overtime Management Platform</h2>
           <p>Internal enterprise system for managing employee leave and overtime approvals securely and efficiently.</p>
         </div>
 
@@ -52,8 +61,98 @@
     </div>
   </div>
 </template>
+<script setup>
+import { computed } from "vue"
+import { useRouter } from "vue-router"
 
+const router = useRouter()
+
+const role = localStorage.getItem("role")
+const username = localStorage.getItem("username")
+
+const dashboardLink = computed(() => {
+  if (role === "Admin") return "/admin"
+  if (role === "Manager") return "/manager"
+  if (role === "Employee") return "/employee"
+  return "/login"
+})
+
+const logout = () => {
+  localStorage.removeItem("token")
+  localStorage.removeItem("role")
+  localStorage.removeItem("username")
+  router.push("/login")
+}
+</script>
 <style scoped>
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  background: #f4f7fe; /* đổi màu nền */
+  color: #2b3674;      /* màu icon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.user-text {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+}
+
+.name {
+  font-weight: 600;
+  color: #2b3674;
+}
+
+.role {
+  font-size: 12px;
+  color: #707eae;
+}
+
+.logout-btn {
+  background: #4318ff;   /* giống login */
+  color: white;
+  padding: 10px 25px;
+  border: none;
+  border-radius: 30px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.logout-btn:hover {
+  background: #2b3674;   /* hover giống login */
+}
+.logout-btn {
+  background: #4bb1f5;
+  color: white;
+  padding: 10px 25px;
+  border: none;
+  border-radius: 30px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.logout-btn:hover {
+  background: #d9363e;
+}
 .layout-wrapper {
   display: flex;
   height: 100vh;
