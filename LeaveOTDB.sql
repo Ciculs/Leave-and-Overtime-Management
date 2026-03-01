@@ -282,3 +282,22 @@ INSERT INTO AuditLogs
 (EntityId, EntityType, Action, OldValue, NewValue, ActionBy)
 VALUES
 (1,'Leave','Create',NULL,'Leave created','3');
+
+CREATE TABLE Accounts (
+    Id INT IDENTITY PRIMARY KEY,
+    Username NVARCHAR(100) NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    UserId INT NOT NULL,
+    IsLocked BIT DEFAULT 0,
+    LastLoginAt DATETIME2 NULL,
+
+    FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+INSERT INTO Accounts (Username, PasswordHash, UserId)
+VALUES
+('manager','123456',1),
+('hr','123456',2),
+('a','123456',3),
+('b','123456',4),
+('c','123456',5);
