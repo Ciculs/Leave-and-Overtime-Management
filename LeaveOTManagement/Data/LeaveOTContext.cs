@@ -15,11 +15,8 @@ public partial class LeaveOTContext : DbContext
         : base(options)
     {
     }
-    public DbSet<User> Users { get; set; }
 
     public virtual DbSet<Approval> Approvals { get; set; }
-
-    public DbSet<Account> Accounts { get; set; }
 
     public virtual DbSet<ApprovalWorkflow> ApprovalWorkflows { get; set; }
 
@@ -42,6 +39,8 @@ public partial class LeaveOTContext : DbContext
     public virtual DbSet<Otrequest> Otrequests { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
+
+    public virtual DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

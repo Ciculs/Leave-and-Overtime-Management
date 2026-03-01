@@ -1,15 +1,16 @@
-import axios from "axios"
+import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://localhost:7121/api",  // 👈 sửa chỗ này
-})
+    baseURL: "https://localhost:7121/api"
+});
+
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token")
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+    const token = localStorage.getItem("token")
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
 })
 
 export default api

@@ -6,10 +6,14 @@
       <router-link to="/dashboard" class="nav-item">📊 Dashboard</router-link>
 
       <template v-if="user.role === 'Employee'">
-        <router-link to="/leave/new" class="nav-item">📝 Submit Leave</router-link>
-        <router-link to="/ot/new" class="nav-item">⏱️ Submit OT</router-link>
-        <router-link to="/my-requests" class="nav-item">📁 My Requests</router-link>
-      </template>
+  <router-link to="/leave/new" class="nav-item">
+    📝 Submit Leave
+  </router-link>
+
+  <router-link to="/my-requests" class="nav-item">
+    📁 My Requests
+  </router-link>
+</template>
 
       <template v-if="user.role === 'Manager'">
         <router-link to="/manager/approvals" class="nav-item">✅ Team Approvals</router-link>
@@ -33,7 +37,7 @@ export default {
       // Sau này bạn sẽ lấy giá trị này từ Pinia store hoặc localStorage
       user: {
         name: "Admin",
-        role: "Employee" // Thử đổi thành 'Employee' hoặc 'Manager' để thấy menu thay đổi
+        role: "HR" // Thử đổi thành 'Employee' hoặc 'Manager' để thấy menu thay đổi
       }
     };
   }

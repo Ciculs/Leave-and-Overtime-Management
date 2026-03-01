@@ -1,63 +1,106 @@
-﻿using LeaveOTManagement.Data;
-using LeaveOTManagement.Models.Entities;
-using Microsoft.AspNetCore.Authorization;
+﻿//using Microsoft.AspNetCore.Authorization;
+//using Microsoft.AspNetCore.Mvc;
+//using LeaveOTManagement.Services.Interfaces;
+//using LeaveOTManagement.DTOs.OT;
+
+//namespace LeaveOTManagement.Controllers
+//{
+//    [Route("api/[controller]")]
+//    [ApiController]
+//    //[Authorize]
+//    public class OTController : ControllerBase
+//    {
+//        private readonly IOTService _service;
+
+//        public OTController(IOTService service)
+//        {
+//            _service = service;
+//        }
+
+//        [HttpPost]
+//        public async Task<IActionResult> Create(CreateOtRequestDto dto)
+//        {
+//            var claim = User.FindFirst("UserId");
+//            if (claim == null)
+//                return Unauthorized();
+
+//            int userId = int.Parse(claim.Value);
+
+//            var id = await _service.CreateOtAsync(userId, dto);
+
+//            return Ok(new { id });
+//        }
+
+//        [HttpPut("{id}")]
+//        public async Task<IActionResult> Update(long id, UpdateOtRequestDto dto)
+//        {
+//            int userId = int.Parse(User.FindFirst("UserId")!.Value);
+
+//            await _service.UpdateOtAsync(id, userId, dto);
+
+//            return Ok();
+//        }
+
+//        [HttpGet]
+//        public async Task<IActionResult> GetMyOt([FromQuery] string? status)
+//        {
+//            int userId = int.Parse(User.FindFirst("UserId")!.Value);
+
+//            var result = await _service.GetMyOtAsync(userId, status);
+
+//            return Ok(result);
+//        }
+//    }
+//}
+
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using LeaveOTManagement.Services.Interfaces;
+using LeaveOTManagement.DTOs.OT;
 
-[Route("api/[controller]")]
-[ApiController]
-[Authorize]
-public class OTController : ControllerBase
+namespace LeaveOTManagement.Controllers
 {
-    private readonly LeaveOTContext _context;
-
-    public OTController(LeaveOTContext context)
+    [Route("api/[controller]")]
+    [ApiController]
+    public class OTController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly IOTService _service;
 
-    [HttpPost]
-    public async Task<IActionResult> SubmitOT(Otrequest request)
-    {
-        var userId = int.Parse(User.FindFirst("id").Value);
+        public OTController(IOTService service)
+        {
+            _service = service;
+        }
 
-        request.UserId = userId;
-        request.Status = "PendingManager";
+        // TEST MODE: hard-code userId
+        private int GetTestUserId() => 1;
 
-        _context.Otrequests.Add(request);
-        await _context.SaveChangesAsync();
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateOtRequestDto dto)
+        {
+            var userId = GetTestUserId();
 
-        return Ok(request);
-    }
+            var id = await _service.CreateOtAsync(userId, dto);
 
-    [HttpGet("pending-manager")]
-    [Authorize(Roles = "Manager")]
-    public async Task<IActionResult> PendingManager()
-    {
-        return Ok(await _context.Otrequests
-            .Where(x => x.Status == "PendingManager")
-            .ToListAsync());
-    }
+            return Ok(new { id });
+        }
 
-    [HttpPost("manager-approve/{id}")]
-    [Authorize(Roles = "Manager")]
-    public async Task<IActionResult> ManagerApprove(int id)
-    {
-        var ot = await _context.Otrequests.FindAsync(id);
-        ot.Status = "PendingHR";
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(long id, [FromBody] UpdateOtRequestDto dto)
+        {
+            var userId = GetTestUserId();
 
-        await _context.SaveChangesAsync();
-        return Ok();
-    }
+            await _service.UpdateOtAsync(id, userId, dto);
 
-    [HttpPost("hr-approve/{id}")]
-    [Authorize(Roles = "HR")]
-    public async Task<IActionResult> HRApprove(int id)
-    {
-        var ot = await _context.Otrequests.FindAsync(id);
-        ot.Status = "Approved";
+            return Ok();
+        }
 
-        await _context.SaveChangesAsync();
-        return Ok();
+        [HttpGet]
+        public async Task<IActionResult> GetMyOt([FromQuery] string? status)
+        {
+            var userId = GetTestUserId();
+
+            var result = await _service.GetMyOtAsync(userId, status);
+
+            return Ok(result);
+        }
     }
 }
