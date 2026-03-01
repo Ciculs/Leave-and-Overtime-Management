@@ -5,7 +5,7 @@ import Login from "../views/Login.vue"
 import DashboardAdmin from "../views/DashboardAdmin.vue"
 import DashboardManager from "../views/DashboardManager.vue"
 import DashboardEmployee from "../views/DashboardEmployee.vue"
-
+import LeaveRequest from "../views/LeaveRequest.vue" 
 const routes = [
   {
     path: "/login",
@@ -30,6 +30,11 @@ const routes = [
         path: "employee",
         component: DashboardEmployee,
         meta: { role: "Employee" }
+      },
+      {
+        path: "leave/new",          
+        component: LeaveRequest,
+        meta: { role: "Employee" }  
       }
     ]
   }
