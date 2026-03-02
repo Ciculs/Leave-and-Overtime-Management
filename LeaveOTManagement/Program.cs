@@ -1,11 +1,13 @@
 using LeaveOTManagement.Data;
+using LeaveOTManagement.Service.Interfaces;
+using LeaveOTManagement.Service;
 using LeaveOTManagement.Services.Interfaces;
 using LeaveOTManagement.Services;
 using Microsoft.EntityFrameworkCore;
-using OfficeOpenXml;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OfficeOpenXml;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,6 +61,18 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // ===============================
+// Session
+// ===============================
+builder.Services.AddDistributedMemoryCache();
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+// ===============================
 // Database
 // ===============================
 builder.Services.AddDbContext<LeaveOTContext>(options =>
@@ -68,6 +82,7 @@ builder.Services.AddDbContext<LeaveOTContext>(options =>
 // ===============================
 // Dependency Injection
 // ===============================
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOTService, OTService>();
 
 // ===============================
@@ -88,7 +103,7 @@ builder.Services.AddCors(options =>
 // JWT Authentication
 // ===============================
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwtSection["Key"]);
+var key = Encoding.UTF8.GetBytes(jwtSection["Key"]!);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -127,6 +142,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
+
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();
