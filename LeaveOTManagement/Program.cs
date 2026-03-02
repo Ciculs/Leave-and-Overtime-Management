@@ -1,4 +1,4 @@
-﻿using LeaveOTManagement.Data;
+using LeaveOTManagement.Data;
 using LeaveOTManagement.Services.Interfaces;
 using LeaveOTManagement.Services;
 using Microsoft.EntityFrameworkCore;
