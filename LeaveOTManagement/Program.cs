@@ -1,27 +1,70 @@
-﻿using LeaveOTManagement.Data;
+using LeaveOTManagement.Data;
 using LeaveOTManagement.Service.Interfaces;
 using LeaveOTManagement.Service;
+using LeaveOTManagement.Services.Interfaces;
+using LeaveOTManagement.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using OfficeOpenXml;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// =========================
-// Add services
-// =========================
+// ===============================
+// EPPlus License
+// ===============================
+ExcelPackage.License.SetNonCommercialPersonal("LeaveOTManagement");
 
-
-
+// ===============================
+// Add Services
+// ===============================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-// ✅ THÊM DÒNG NÀY
+// ===============================
+// Swagger + JWT Support
+// ===============================
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Leave OT Management API",
+        Version = "v1"
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Nhập: Bearer {your token}"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
+
+// ===============================
+// Session
+// ===============================
 builder.Services.AddDistributedMemoryCache();
 
-// ✅ Session config chuẩn
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
@@ -29,16 +72,38 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// DbContext
+// ===============================
+// Database
+// ===============================
 builder.Services.AddDbContext<LeaveOTContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// =========================
-// JWT CONFIG
-// =========================
+// ===============================
+// Dependency Injection
+// ===============================
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IOTService, OTService>();
 
-var jwtKey = builder.Configuration["Jwt:Key"];
+// ===============================
+// CORS
+// ===============================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:5173")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
+// ===============================
+// JWT Authentication
+// ===============================
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var key = Encoding.UTF8.GetBytes(jwtSection["Key"]!);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -53,47 +118,21 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtKey!))
+
+        ValidIssuer = jwtSection["Issuer"],
+        ValidAudience = jwtSection["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
     };
 });
 
-// =========================
-// Dependency Injection
-// =========================
-builder.Services.AddScoped<IAuthService, AuthService>();
-
-// =========================
-// CORS cho Vue
-// =========================
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowVue",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
-});
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
-});
+// ===============================
+// Build App
+// ===============================
 var app = builder.Build();
-app.UseCors("AllowFrontend");
-// =========================
-// Configure pipeline
-// =========================
 
+// ===============================
+// Middleware
+// ===============================
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -102,12 +141,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// CORS phải trước Auth
-app.UseCors("AllowVue");
+app.UseCors("AllowFrontend");
 
 app.UseSession();
 
-// ⚠️ QUAN TRỌNG: Authentication phải trước Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 

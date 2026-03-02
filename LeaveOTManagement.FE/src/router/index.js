@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from "vue-router"
 import DashboardLayout from "../layouts/DashboardLayout.vue"
-
+import OTRequest from "../views/OTRequest.vue"
+import OTEdit from "../views/OTEdit.vue"
+import OTList from "../views/OTList.vue"
 import Login from "../views/Login.vue"
 import DashboardAdmin from "../views/DashboardAdmin.vue"
 import DashboardManager from "../views/DashboardManager.vue"
@@ -35,7 +37,17 @@ const routes = [
         path: "leave/new",          
         component: LeaveRequest,
         meta: { role: "Employee" }  
-      }
+      },
+      {
+                path: "my-ot",
+                component: OTList
+            },
+
+            // ✅ Edit OT
+            {
+                path: "ot/edit/:id",
+                component: OTEdit
+            }
     ]
   }
 ]
