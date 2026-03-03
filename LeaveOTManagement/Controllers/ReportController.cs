@@ -17,18 +17,13 @@ public class ReportController : ControllerBase
     [HttpGet("top-ot")]
     public IActionResult TopOT()
     {
-        var data = _context.Otrequests
-            .Where(r => r.Status == "Approved")
-            .Select(r => new
-            {
-                r.UserId,
-                TotalHours = r.Otdetails.Sum(d => d.Hours)
-            })
-            .GroupBy(x => x.UserId)
+        var data = _context.Otdetails
+            .Where(d => d.Otrequest.Status == "Approved")
+            .GroupBy(d => d.Otrequest.UserId)
             .Select(g => new
             {
                 UserId = g.Key,
-                TotalHours = g.Sum(x => x.TotalHours)
+                TotalHours = g.Sum(x => x.Hours)
             })
             .OrderByDescending(x => x.TotalHours)
             .Take(5)

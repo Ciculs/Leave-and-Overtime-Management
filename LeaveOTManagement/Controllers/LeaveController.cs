@@ -117,5 +117,31 @@ namespace LeaveOTManagement.Controllers
 
             return Ok(new { message = "Gửi yêu cầu nghỉ phép thành công!" });
         }
+
+        [HttpGet("my")]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> GetMyLeaves()
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            var leaves = await _context.LeaveRequests
+                .Include(l => l.LeaveType)
+                .Where(l => l.UserId == userId)
+                .OrderByDescending(l => l.CreatedAt)
+                .Select(l => new
+                {
+                    Id = l.Id,
+                    LeaveType = l.LeaveType.Name,
+                    FromDate = l.FromDate,
+                    ToDate = l.ToDate,
+                    TotalDays = l.TotalDays,
+                    Reason = l.Reason,
+                    Status = l.Status,
+                    CreatedAt = l.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(leaves);
+        }
     }
 }

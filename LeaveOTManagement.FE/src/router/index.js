@@ -1,13 +1,19 @@
 import { createRouter, createWebHistory } from "vue-router"
 import DashboardLayout from "../layouts/DashboardLayout.vue"
-import OTRequest from "../views/OTRequest.vue"
-import OTEdit from "../views/OTEdit.vue"
-import OTList from "../views/OTList.vue"
 import Login from "../views/Login.vue"
+
 import DashboardAdmin from "../views/DashboardAdmin.vue"
 import DashboardManager from "../views/DashboardManager.vue"
 import DashboardEmployee from "../views/DashboardEmployee.vue"
-import LeaveRequest from "../views/LeaveRequest.vue" 
+
+import LeaveRequest from "../views/LeaveRequest.vue"
+import OTList from "../views/OTList.vue"
+import OTEdit from "../views/OTEdit.vue"
+
+import HolidayList from "../views/HolidayList.vue"
+import Reports from "../views/Reports.vue"
+import LeaveTable from "@/components/LeaveTable.vue"
+
 const routes = [
   {
     path: "/login",
@@ -34,20 +40,37 @@ const routes = [
         meta: { role: "Employee" }
       },
       {
-        path: "leave/new",          
+        path: "leave/new",
         component: LeaveRequest,
-        meta: { role: "Employee" }  
+        meta: { role: "Employee" }
       },
       {
-                path: "my-ot",
-                component: OTList
-            },
+        path: "my-ot",
+        component: OTList,
+        meta: { role: "Employee" }
+      },
+      {
+        path: "ot/edit/:id",
+        component: OTEdit,
+        meta: { role: "Employee" }
+      },
 
-            // ✅ Edit OT
-            {
-                path: "ot/edit/:id",
-                component: OTEdit
-            }
+      // ✅ HR ROUTES
+      {
+        path: "holidays",
+        component: HolidayList,
+        meta: { role: "HR" }
+      },
+      {
+        path: "reports",
+        component: Reports,
+        meta: { role: "HR" }
+      },
+      { 
+        path: "my-leaves", 
+        component: LeaveTable, 
+        meta: { role: "Employee" } 
+      }
     ]
   }
 ]
@@ -57,6 +80,7 @@ const router = createRouter({
   routes
 })
 
+/* ✅ FIXED ROUTER GUARD */
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem("token")
   const role = localStorage.getItem("role")
@@ -65,7 +89,9 @@ router.beforeEach((to, from, next) => {
     return next("/login")
   }
 
-  if (to.meta.role && to.meta.role !== role) {
+  const requiredRole = to.matched.find(r => r.meta.role)?.meta.role
+
+  if (requiredRole && requiredRole !== role) {
     return next("/login")
   }
 
