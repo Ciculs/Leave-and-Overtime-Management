@@ -6,7 +6,7 @@ using OfficeOpenXml;
 
 namespace LeaveOTManagement.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/holidays")]
     [ApiController]
 
     public class HolidayController : ControllerBase
