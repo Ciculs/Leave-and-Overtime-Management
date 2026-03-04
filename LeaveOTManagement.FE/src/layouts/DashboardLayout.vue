@@ -19,10 +19,7 @@
 
       <main class="content-area">
         <div class="blue-banner">
-          <h2>Leave & Overtime Management Platform</h2>
-          <p>
-            Internal enterprise system for managing employee leave and overtime approvals securely and efficiently.
-          </p>
+          <h3>Leave & Overtime Management Platform</h3>
         </div>
 
         <router-view />
@@ -77,7 +74,7 @@ const closeSidebar = () => {
 /* BLUE BANNER */
 .blue-banner {
   background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-  padding: 40px;
+  padding: 25px;
   border-radius: 20px;
   color: white;
   margin-bottom: 30px;
@@ -142,7 +139,7 @@ const closeSidebar = () => {
   }
 
   .content-area {
-    padding: 25px 20px;
+    padding: 0px 20px;
   }
 
   .blue-banner {
