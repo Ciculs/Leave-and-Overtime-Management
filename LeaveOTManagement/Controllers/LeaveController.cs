@@ -20,128 +20,164 @@ namespace LeaveOTManagement.Controllers
             _context = context;
         }
 
+        /* =====================================================
+           GET BALANCES
+        ===================================================== */
         [HttpGet("balances")]
         public async Task<IActionResult> GetBalances()
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var currentYear = DateTime.Now.Year;
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out int userId) || userId == 0)
+                return Unauthorized(new { message = "Invalid user token." });
+
+            var currentYear = DateTime.UtcNow.Year;
 
             var balances = await _context.LeaveBalances
                 .Include(b => b.LeaveType)
                 .Where(b => b.UserId == userId && b.Year == currentYear)
                 .Select(b => new
                 {
-                    LeaveTypeId = b.LeaveTypeId,
-                    LeaveTypeName = b.LeaveType.Name,
-                    TotalDays = b.TotalDays,
-                    UsedDays = b.UsedDays,
-                    RemainingDays = b.TotalDays - b.UsedDays
-                }).ToListAsync();
+                    leaveTypeId = b.LeaveTypeId,
+                    leaveTypeName = b.LeaveType.Name,
+                    totalDays = b.TotalDays,
+                    usedDays = b.UsedDays,
+                    remainingDays = b.TotalDays - b.UsedDays
+                })
+                .ToListAsync();
 
-            var unpaidLeave = await _context.LeaveTypes.FirstOrDefaultAsync(l => l.MaxDaysPerYear == null);
+            // Thêm Unpaid Leave nếu có
+            var unpaidLeave = await _context.LeaveTypes
+                .FirstOrDefaultAsync(l => l.MaxDaysPerYear == null);
+
             if (unpaidLeave != null)
             {
                 balances.Add(new
                 {
-                    LeaveTypeId = unpaidLeave.Id,
-                    LeaveTypeName = unpaidLeave.Name,
-                    TotalDays = 0m,
-                    UsedDays = (decimal?)0m,         // Đã ép kiểu null để khớp với List
-                    RemainingDays = (decimal?)999m   // Đã ép kiểu null để khớp với List
+                    leaveTypeId = unpaidLeave.Id,
+                    leaveTypeName = unpaidLeave.Name,
+                    totalDays = 0m,
+                    usedDays = 0m,
+                    remainingDays = 999m
                 });
             }
 
             return Ok(balances);
         }
 
+        /* =====================================================
+           SUBMIT LEAVE
+        ===================================================== */
         [HttpPost]
         public async Task<IActionResult> SubmitLeave([FromBody] CreateLeaveDto request)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(userIdClaim, out int userId) || userId == 0)
+                return Unauthorized(new { message = "Invalid user token." });
 
-            // Validate trùng ngày 
+            if (request == null)
+                return BadRequest(new { message = "Invalid request data." });
+
+            // 1️⃣ Validate ngày trước
+            if (request.FromDate > request.ToDate)
+                return BadRequest(new { message = "Start date cannot be after end date." });
+
+            var calculatedDays = (request.ToDate.DayNumber - request.FromDate.DayNumber) + 1;
+
+            if (calculatedDays <= 0)
+                return BadRequest(new { message = "Invalid leave duration." });
+
+            // 2️⃣ Check LeaveType tồn tại
+            var leaveType = await _context.LeaveTypes
+                .FirstOrDefaultAsync(l => l.Id == request.LeaveTypeId);
+
+            if (leaveType == null)
+                return BadRequest(new { message = "Leave type does not exist." });
+
+            // 3️⃣ Check trùng lịch
             var isOverlapping = await _context.LeaveRequests
-                .AnyAsync(r => r.UserId == userId
-                            && r.Status != "Rejected" && r.Status != "Cancelled"
-                            && r.FromDate <= request.ToDate
-                            && r.ToDate >= request.FromDate);
+                .AnyAsync(r =>
+                    r.UserId == userId &&
+                    r.Status != "Rejected" &&
+                    r.Status != "Cancelled" &&
+                    r.FromDate <= request.ToDate &&
+                    r.ToDate >= request.FromDate);
 
             if (isOverlapping)
-                return BadRequest(new { message = "Lỗi: Bạn đã có đơn xin nghỉ khác trùng với khoảng thời gian này!" });
+                return BadRequest(new { message = "You already have a leave request overlapping this period." });
 
-            // Validate số dư
-            var leaveType = await _context.LeaveTypes.FindAsync(request.LeaveTypeId);
-            if (leaveType != null && leaveType.MaxDaysPerYear != null)
+            // 4️⃣ Check số dư (nếu không phải Unpaid)
+            if (leaveType.MaxDaysPerYear != null)
             {
                 var balance = await _context.LeaveBalances
-                    .FirstOrDefaultAsync(b => b.UserId == userId && b.LeaveTypeId == request.LeaveTypeId && b.Year == DateTime.Now.Year);
+                    .FirstOrDefaultAsync(b =>
+                        b.UserId == userId &&
+                        b.LeaveTypeId == request.LeaveTypeId &&
+                        b.Year == DateTime.UtcNow.Year);
 
-                if (balance == null || (balance.TotalDays - balance.UsedDays) < request.TotalDays)
+                if (balance == null)
+                    return BadRequest(new { message = "Leave balance not found." });
+
+                var remaining = balance.TotalDays - balance.UsedDays;
+
+                if (remaining < calculatedDays)
                 {
-                    return BadRequest(new { message = "Lỗi: Số dư phép hiện tại của bạn không đủ!" });
+                    return BadRequest(new
+                    {
+                        message = $"Insufficient balance. You need {calculatedDays} days but only have {remaining} days left."
+                    });
                 }
+
+                // Trừ UsedDays luôn nếu muốn trừ ngay khi submit
+                balance.UsedDays += calculatedDays;
             }
 
-            
-            var newLeave = new LeaveRequest
-            {
-                UserId = userId,
-                LeaveTypeId = request.LeaveTypeId,
-                FromDate = request.FromDate,
-                ToDate = request.ToDate,
-                TotalDays = request.TotalDays,
-                Reason = request.Reason,
-                Status = "Pending",
-                CurrentApprovalLevel = 1,
-                CreatedAt = DateTime.Now
-            };
+            // 5️⃣ Transaction đảm bảo atomic
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-            _context.LeaveRequests.Add(newLeave);
-            await _context.SaveChangesAsync();
-
-            // Sinh Approval cho Manager
-            var user = await _context.Users.FindAsync(userId);
-            if (user?.ManagerId != null)
+            try
             {
-                var approval = new Approval
+                var newLeave = new LeaveRequest
                 {
-                    RequestId = newLeave.Id,
-                    RequestType = "Leave",
-                    ApprovalLevel = 1,
-                    ApproverId = (int)user.ManagerId,
-                    Status = "Pending"
+                    UserId = userId,
+                    LeaveTypeId = request.LeaveTypeId,
+                    FromDate = request.FromDate,
+                    ToDate = request.ToDate,
+                    TotalDays = calculatedDays,
+                    Reason = request.Reason,
+                    Status = "Pending",
+                    CurrentApprovalLevel = 1,
+                    CreatedAt = DateTime.UtcNow
                 };
-                _context.Approvals.Add(approval);
+
+                _context.LeaveRequests.Add(newLeave);
                 await _context.SaveChangesAsync();
+
+                // Tạo approval nếu có manager
+                var user = await _context.Users.FindAsync(userId);
+                if (user?.ManagerId != null)
+                {
+                    var approval = new Approval
+                    {
+                        RequestId = newLeave.Id,
+                        RequestType = "Leave",
+                        ApprovalLevel = 1,
+                        ApproverId = (int)user.ManagerId,
+                        Status = "Pending"
+                    };
+
+                    _context.Approvals.Add(approval);
+                    await _context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "An error occurred while processing your request." });
             }
 
-            return Ok(new { message = "Gửi yêu cầu nghỉ phép thành công!" });
-        }
-
-        [HttpGet("my")]
-        [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> GetMyLeaves()
-        {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-
-            var leaves = await _context.LeaveRequests
-                .Include(l => l.LeaveType)
-                .Where(l => l.UserId == userId)
-                .OrderByDescending(l => l.CreatedAt)
-                .Select(l => new
-                {
-                    Id = l.Id,
-                    LeaveType = l.LeaveType.Name,
-                    FromDate = l.FromDate,
-                    ToDate = l.ToDate,
-                    TotalDays = l.TotalDays,
-                    Reason = l.Reason,
-                    Status = l.Status,
-                    CreatedAt = l.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(leaves);
+            return Ok(new { message = "Leave request submitted successfully!" });
         }
     }
 }
