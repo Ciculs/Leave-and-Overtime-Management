@@ -21,10 +21,6 @@
 
       <!-- EMPLOYEE -->
       <template v-if="role === 'Employee'">
-        <router-link to="/leave/new" class="nav-item">
-          📝 <span v-if="!collapsed">Submit Leave</span>
-        </router-link>
-
         <router-link to="/my-leaves" class="nav-item">
           📄 <span v-if="!collapsed">My Leave Requests</span>
         </router-link>
