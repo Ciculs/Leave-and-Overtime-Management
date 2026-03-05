@@ -6,85 +6,120 @@
     </div>
 
     <div class="content-wrapper">
+      <!-- FORM -->
       <div class="form-card">
         <form @submit.prevent="submitLeave">
           
+          <!-- Leave Type -->
           <div class="form-group">
             <label>Leave Type</label>
-            <select v-model="form.leaveTypeId" required>
+            <select v-model.number="form.leaveTypeId" required>
               <option value="" disabled>Select leave type</option>
-              <option v-for="type in leaveTypes" :key="type.id" :value="type.id">
+              <option
+                v-for="type in leaveTypes"
+                :key="type.id"
+                :value="type.id"
+              >
                 {{ type.name }}
               </option>
             </select>
           </div>
 
+          <!-- Dates -->
           <div class="date-row">
             <div class="form-group">
-  <label>Start Date</label>
-  <input type="date" v-model="form.startDate" :min="today" :max="endOfYear+1" required />
-</div>
+              <label>Start Date</label>
+              <input
+                type="date"
+                v-model="form.startDate"
+                :min="today"
+                :max="endOfYear"
+                required
+              />
+            </div>
 
-<div class="form-group">
-  <label>End Date</label>
-  <input type="date" v-model="form.endDate" :min="form.startDate || today" :max="endOfYear+1" required />
-</div>
+            <div class="form-group">
+              <label>End Date</label>
+              <input
+                type="date"
+                v-model="form.endDate"
+                :min="form.startDate || today"
+                :max="endOfYear"
+                required
+              />
+            </div>
           </div>
 
+          <!-- Reason -->
           <div class="form-group">
             <label>Reason</label>
-            <textarea 
-              v-model="form.reason" 
-              rows="4" 
-              placeholder="Provide a detailed reason..." 
+            <textarea
+              v-model="form.reason"
+              rows="4"
+              placeholder="Provide a detailed reason..."
               required
             ></textarea>
           </div>
 
-          <div v-if="daysRequested > 0" :class="['validation-box', isBalanceError ? 'error' : 'success']">
-            <span class="icon">{{ isBalanceError ? '⚠️' : '✅' }}</span>
+          <!-- Validation Box -->
+          <div
+            v-if="daysRequested > 0"
+            :class="['validation-box', isBalanceError ? 'error' : 'success']"
+          >
+            <span class="icon">{{ isBalanceError ? "⚠️" : "✅" }}</span>
             <div class="val-text">
               <strong>Requested Days: {{ daysRequested }}</strong>
-              <p v-if="isBalanceError">Exceeds available balance ({{ currentBalance }} days).</p>
+              <p v-if="isBalanceError">
+                Exceeds available balance ({{ currentBalance }} days).
+              </p>
               <p v-else>Valid request length.</p>
             </div>
           </div>
 
+          <!-- API Error -->
           <div v-if="apiError" class="validation-box error">
             <span class="icon">❌</span>
             <div class="val-text">{{ apiError }}</div>
           </div>
 
-          <button 
-            type="submit" 
-            class="btn-submit" 
+          <!-- Submit -->
+          <button
+            type="submit"
+            class="btn-submit"
             :disabled="isBalanceError || isSubmitting"
           >
-            {{ isSubmitting ? 'Submitting...' : 'Submit Request' }}
+            {{ isSubmitting ? "Submitting..." : "Submit Request" }}
           </button>
         </form>
       </div>
 
+      <!-- BALANCE CARD -->
       <div class="balance-card">
         <h3>Your Leave Balances</h3>
         <div class="balance-list">
-          <div 
-            v-for="bal in balances" 
-            :key="bal.leaveTypeId" 
-            :class="['balance-item', { active: form.leaveTypeId === bal.leaveTypeId }]"
+          <div
+            v-for="bal in balances"
+            :key="bal.leaveTypeId"
+            :class="[
+              'balance-item',
+              { active: form.leaveTypeId === bal.leaveTypeId }
+            ]"
           >
             <div class="bal-info">
               <span class="bal-name">{{ bal.leaveTypeName }}</span>
-              <span class="bal-used">Used: {{ bal.usedDays }} days</span>
+              <span class="bal-used">
+                Used: {{ bal.usedDays }} days
+              </span>
             </div>
             <div class="bal-total">
-              <span class="remaining">{{ bal.remainingDays }}</span>
+              <span class="remaining">
+                {{ bal.remainingDays }}
+              </span>
               <span class="lbl">Left</span>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>
@@ -93,82 +128,86 @@
 import { ref, reactive, computed, onMounted } from "vue"
 import api from "@/services/api"
 
-// Dữ liệu giả lập tạm thời (Sprint 1 FE) - Sau này sẽ gọi API
-const leaveTypes = ref([
-  { id: 1, name: "Annual Leave" },
-  { id: 2, name: "Sick Leave" },
-  { id: 3, name: "Unpaid Leave" }
-])
+const leaveTypes = ref([])
+const balances = ref([])
 
-const balances = ref([
-  { leaveTypeId: 1, leaveTypeName: "Annual Leave", totalDays: 12, usedDays: 2, remainingDays: 10 },
-  { leaveTypeId: 2, leaveTypeName: "Sick Leave", totalDays: 10, usedDays: 0, remainingDays: 10 },
-  { leaveTypeId: 3, leaveTypeName: "Unpaid Leave", totalDays: 0, usedDays: 5, remainingDays: 999 } // Unpaid không giới hạn
-])
+const today = new Date().toISOString().split("T")[0]
+const currentYear = new Date().getFullYear()
+const endOfYear = `${currentYear}-12-31`
 
-const today = new Date().toISOString().split('T')[0]
-const currentYear = new Date().getFullYear() 
-const endOfYear = `${currentYear}-12-31` 
 const isSubmitting = ref(false)
 const apiError = ref("")
 
 const form = reactive({
-  leaveTypeId: "",
+  leaveTypeId: null,
   startDate: "",
   endDate: "",
   reason: ""
 })
 
-// Lấy số dư hiện tại của loại phép đang chọn (US8)
+/* ========================
+   COMPUTED
+======================== */
+
 const currentBalance = computed(() => {
   if (!form.leaveTypeId) return 0
-  const bal = balances.value.find(b => b.leaveTypeId === form.leaveTypeId)
+  const bal = balances.value.find(
+    b => b.leaveTypeId === form.leaveTypeId
+  )
   return bal ? bal.remainingDays : 0
 })
 
-// Tính số ngày xin nghỉ (US10)
 const daysRequested = computed(() => {
   if (!form.startDate || !form.endDate) return 0
-  const start = new Date(form.startDate)
-  const end = new Date(form.endDate)
+
+  const start = new Date(form.startDate + "T00:00:00")
+  const end = new Date(form.endDate + "T00:00:00")
+
+  if (end < start) return 0
+
   const diffTime = end - start
-  if (diffTime < 0) return 0
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
 })
 
-// Kiểm tra lỗi vượt số dư (US10)
 const isBalanceError = computed(() => {
   if (!form.leaveTypeId) return false
-  // Nếu là Unpaid Leave (id:3) thì không check số dư
-  if (form.leaveTypeId === 3) return false 
+
+  // ID = 3 là Unpaid Leave (không giới hạn)
+  if (form.leaveTypeId === 3) return false
+
   return daysRequested.value > currentBalance.value
 })
 
+/* ========================
+   SUBMIT
+======================== */
+
 const submitLeave = async () => {
   apiError.value = ""
+
+  if (new Date(form.endDate) < new Date(form.startDate)) {
+    apiError.value = "End date cannot be before start date."
+    return
+  }
+
   isSubmitting.value = true
 
   try {
-    // Gọi API lưu xuống DB
     await api.post("/Leave", {
       leaveTypeId: form.leaveTypeId,
-      fromDate: form.startDate, // Trùng tên cột FromDate trong DB
-      toDate: form.endDate,     // Trùng tên cột ToDate trong DB
-      totalDays: daysRequested.value,
+      fromDate: form.startDate,
+      toDate: form.endDate,
       reason: form.reason
     })
-    
+
     alert("Leave request submitted successfully!")
-    // Reset form
-    form.leaveTypeId = ""
-    form.startDate = ""
-    form.endDate = ""
-    form.reason = ""
+
+    resetForm()
+    await fetchData()
 
   } catch (error) {
-    // US34: Hiển thị lỗi từ Backend nếu Backend phát hiện trùng ngày
-    if (error.response && error.response.data) {
-      apiError.value = error.response.data.message || "Failed to submit. Duplicate dates may exist."
+    if (error.response?.data?.message) {
+      apiError.value = error.response.data.message
     } else {
       apiError.value = "An error occurred while submitting."
     }
@@ -177,64 +216,47 @@ const submitLeave = async () => {
   }
 }
 
-onMounted(async () => {
+/* ========================
+   HELPERS
+======================== */
+
+const resetForm = () => {
+  form.leaveTypeId = null
+  form.startDate = ""
+  form.endDate = ""
+  form.reason = ""
+}
+
+const fetchData = async () => {
   try {
-    // Gọi API lấy số dư
     const balRes = await api.get("/Leave/balances")
     balances.value = balRes.data
-    
-    // Trích xuất LeaveTypes từ mảng balances để đổ vào Dropdown
+
     leaveTypes.value = balRes.data.map(b => ({
       id: b.leaveTypeId,
       name: b.leaveTypeName
     }))
   } catch (err) {
-    console.error("Không thể tải dữ liệu số dư phép", err)
+    console.error("Cannot load balances", err)
   }
+}
+
+onMounted(() => {
+  fetchData()
 })
 </script>
 
 <style scoped>
-.leave-request-container {
-  max-width: 1000px;
-}
-
-.header-section {
-  margin-bottom: 30px;
-}
+.leave-request-container { max-width: 1000px; }
+.header-section { margin-bottom: 30px; }
 .header-section h2 { color: #2b3674; margin-bottom: 5px; }
 .header-section p { color: #707eae; font-size: 15px; }
-
-.content-wrapper {
-  display: flex;
-  gap: 30px;
-  align-items: flex-start;
-}
-
-/* FORM CARD */
-.form-card {
-  flex: 2;
-  background: white;
-  padding: 30px;
-  border-radius: 20px;
-  box-shadow: 0 10px 20px rgba(112, 144, 176, 0.05);
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.date-row {
-  display: flex;
-  gap: 20px;
-}
+.content-wrapper { display: flex; gap: 30px; align-items: flex-start; }
+.form-card { flex: 2; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 20px rgba(112,144,176,0.05); }
+.form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.date-row { display: flex; gap: 20px; }
 .date-row .form-group { flex: 1; }
-
 label { font-weight: 600; color: #2b3674; font-size: 14px; }
-
 input, select, textarea {
   padding: 12px 15px;
   border: 1px solid #e2e8f0;
@@ -242,15 +264,12 @@ input, select, textarea {
   font-size: 14px;
   outline: none;
   background: #f4f7fe;
-  transition: 0.3s;
 }
-
 input:focus, select:focus, textarea:focus {
   border-color: #4318ff;
   background: white;
-  box-shadow: 0 0 0 3px rgba(67, 24, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(67,24,255,0.1);
 }
-
 .btn-submit {
   width: 100%;
   padding: 14px;
@@ -261,13 +280,11 @@ input:focus, select:focus, textarea:focus {
   font-weight: 700;
   font-size: 16px;
   cursor: pointer;
-  transition: 0.3s;
-  margin-top: 10px;
 }
-.btn-submit:hover:not(:disabled) { background: #3311cc; }
-.btn-submit:disabled { background: #a3aed0; cursor: not-allowed; }
-
-/* VALIDATION BOX */
+.btn-submit:disabled {
+  background: #a3aed0;
+  cursor: not-allowed;
+}
 .validation-box {
   display: flex;
   align-items: flex-start;
@@ -278,39 +295,33 @@ input:focus, select:focus, textarea:focus {
 }
 .validation-box.error { background: #fee2e2; color: #991b1b; }
 .validation-box.success { background: #dcfce7; color: #166534; }
-.val-text p { margin: 5px 0 0 0; font-size: 13px; }
-
-/* BALANCE CARD */
 .balance-card {
   flex: 1;
   background: white;
   padding: 25px;
   border-radius: 20px;
-  box-shadow: 0 10px 20px rgba(112, 144, 176, 0.05);
+  box-shadow: 0 10px 20px rgba(112,144,176,0.05);
 }
-.balance-card h3 { color: #2b3674; margin-bottom: 20px; font-size: 18px; }
-
 .balance-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   padding: 15px;
   border-radius: 12px;
   background: #f4f7fe;
   margin-bottom: 12px;
-  border: 2px solid transparent;
-  transition: 0.3s;
 }
 .balance-item.active {
-  border-color: #4318ff;
-  background: rgba(67, 24, 255, 0.05);
+  border: 2px solid #4318ff;
+  background: rgba(67,24,255,0.05);
 }
-
-.bal-info { display: flex; flex-direction: column; gap: 4px; }
-.bal-name { font-weight: 600; color: #2b3674; font-size: 14px; }
-.bal-used { font-size: 12px; color: #707eae; }
-
-.bal-total { text-align: right; }
-.remaining { display: block; font-size: 20px; font-weight: 700; color: #4318ff; }
-.lbl { font-size: 11px; color: #707eae; text-transform: uppercase; }
+.remaining {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4318ff;
+}
+.lbl {
+  font-size: 11px;
+  color: #707eae;
+  text-transform: uppercase;
+}
 </style>
