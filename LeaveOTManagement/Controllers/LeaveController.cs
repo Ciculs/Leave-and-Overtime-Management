@@ -53,6 +53,35 @@ namespace LeaveOTManagement.Controllers
 
             return Ok(balances);
         }
+        /* =====================================================
+        GET MY LEAVE REQUESTS
+        ===================================================== */
+        [HttpGet("my")]
+        public async Task<IActionResult> GetMyLeaves()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!int.TryParse(userIdClaim, out int userId) || userId == 0)
+                return Unauthorized(new { message = "Invalid user token." });
+
+            var leaves = await _context.LeaveRequests
+                .Include(l => l.LeaveType)
+                .Where(l => l.UserId == userId)
+                .OrderByDescending(l => l.CreatedAt)
+                .Select(l => new
+                {
+                    id = l.Id,
+                    leaveType = l.LeaveType.Name,
+                    fromDate = l.FromDate,
+                    toDate = l.ToDate,
+                    totalDays = l.TotalDays,
+                    reason = l.Reason,
+                    status = l.Status
+                })
+                .ToListAsync();
+
+            return Ok(leaves);
+        }
 
         [HttpPost]
         public async Task<IActionResult> SubmitLeave([FromBody] CreateLeaveDto request)
