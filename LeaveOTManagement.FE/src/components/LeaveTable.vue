@@ -23,7 +23,7 @@
         <div class="leave-header">
           <span class="leave-type">{{ leave.leaveType }}</span>
 
-          <span :class="['status', leave.status.toLowerCase()]">
+          <span :class="['status', leave.status?.toLowerCase()]">
             {{ leave.status }}
           </span>
         </div>

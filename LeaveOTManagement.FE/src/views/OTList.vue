@@ -1,110 +1,172 @@
 <template>
-  <div class="ot-page">
 
-    <!-- HEADER -->
-    <div class="header-ot">
-      <h2 class="page-title">My OT Requests</h2>
+<div class="ot-container">
 
-      <button
-        v-if="!showRegister"
-        class="register-btn"
-        @click="showRegister = true"
-      >
-        + Register OT
-      </button>
-    </div>
+<!-- HEADER -->
+<div class="page-header">
 
-    <!-- ================= LIST ================= -->
-    <div v-if="!showRegister">
+<h2>My OT Requests</h2>
 
-      <!-- FILTER -->
-      <div class="filter-bar">
-        <select v-model="selectedStatus">
-          <option value="">All Status</option>
-          <option>Pending</option>
-          <option>Approved</option>
-          <option>Rejected</option>
-        </select>
-      </div>
+<button
+v-if="!showRegister"
+class="register-btn"
+@click="showRegister = true"
+>
++ Register OT
+</button>
 
-      <!-- TABLE -->
-      <div class="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Hours</th>
-              <th>Reason</th>
-              <th>Status</th>
-              <th width="120">Action</th>
-            </tr>
-          </thead>
+</div>
 
-          <tbody>
-            <tr v-for="ot in filteredOT" :key="ot.id">
 
-              <!-- Date -->
-              <td>
-                {{ formatDate(ot.details?.[0]?.workDate) }}
-              </td>
+<!-- ================= LIST ================= -->
 
-              <!-- Hours (auto calculate) -->
-              <td>
-                {{ calculateHours(ot.details?.[0]) }}
-              </td>
+<div v-if="!showRegister">
 
-              <td>{{ ot.reason }}</td>
+<!-- FILTER -->
+<div class="filter-bar">
 
-              <td>
-                <span :class="['status', ot.status.toLowerCase()]">
-                  {{ ot.status }}
-                </span>
-              </td>
+<select v-model="selectedStatus">
 
-              <td>
-                <button
-                  class="edit-btn"
-                  @click="editOT(ot.id)"
-                >
-                  Edit
-                </button>
-              </td>
-            </tr>
+<option value="">All Status</option>
+<option>Pending</option>
+<option>Approved</option>
+<option>Rejected</option>
 
-            <tr v-if="filteredOT.length === 0">
-              <td colspan="5" class="empty">
-                No OT Requests
-              </td>
-            </tr>
+</select>
 
-          </tbody>
-        </table>
-      </div>
+</div>
 
-    </div>
 
-    <!-- ================= REGISTER FORM ================= -->
-    <transition name="slide-fade">
-      <div v-if="showRegister" class="register-wrapper">
+<!-- CARD GRID -->
 
-        <OTRequest @success="handleSuccess" />
+<div class="ot-list">
 
-        <button
-          class="cancel-btn"
-          @click="showRegister = false"
-        >
-          ← Back to List
-        </button>
+<div
+v-for="ot in filteredOT"
+:key="ot.id"
+class="ot-card"
+@click="openDetail(ot)"
+>
 
-      </div>
-    </transition>
+<div class="ot-header">
 
-  </div>
+<span class="ot-date">
+📅 {{ formatDate(ot.details?.[0]?.workDate) }}
+</span>
+
+<span :class="['status', ot.status?.toLowerCase()]">
+{{ ot.status }}
+</span>
+
+</div>
+
+<div class="ot-hours">
+⏱ {{ calculateHours(ot.details?.[0]) }} hours
+</div>
+
+<p class="ot-reason">
+{{ ot.reason }}
+</p>
+
+<div class="view-detail">
+Tap to view detail →
+</div>
+
+</div>
+
+<p v-if="filteredOT.length===0" class="empty">
+No OT Requests
+</p>
+
+</div>
+
+</div>
+
+
+<!-- ================= MODAL ================= -->
+
+<div
+v-if="selectedOT"
+class="modal-overlay"
+@click.self="selectedOT=null"
+>
+
+<div class="modal-card">
+
+<h3>OT Request Detail</h3>
+
+<p>
+<strong>Date:</strong>
+{{ formatDate(selectedOT.details?.[0]?.workDate) }}
+</p>
+
+<p>
+<strong>Hours:</strong>
+{{ calculateHours(selectedOT.details?.[0]) }}
+</p>
+
+<p>
+<strong>Status:</strong>
+{{ selectedOT.status }}
+</p>
+
+<div class="reason-section">
+
+<strong>Reason:</strong>
+
+<div class="reason-box">
+{{ selectedOT.reason }}
+</div>
+
+</div>
+
+<button
+class="edit-btn"
+@click="editOT(selectedOT.id)"
+>
+Edit
+</button>
+
+<button
+class="close-btn"
+@click="selectedOT=null"
+>
+Close
+</button>
+
+</div>
+
+</div>
+
+
+<!-- ================= REGISTER ================= -->
+
+<transition name="slide-fade">
+
+<div v-if="showRegister" class="register-wrapper">
+
+<OTRequest @success="handleSuccess"/>
+
+<button
+class="cancel-btn"
+@click="showRegister=false"
+>
+← Back to List
+</button>
+
+</div>
+
+</transition>
+
+</div>
+
 </template>
 
+
 <script setup>
-import { ref, computed, onMounted } from "vue"
-import { useRouter } from "vue-router"
+
+import {ref,computed,onMounted} from "vue"
+import {useRouter} from "vue-router"
 import api from "@/services/api"
 import OTRequest from "./OTRequest.vue"
 
@@ -112,206 +174,366 @@ const router = useRouter()
 
 const showRegister = ref(false)
 const ots = ref([])
+const selectedOT = ref(null)
 const selectedStatus = ref("")
 
 onMounted(loadOT)
 
-async function loadOT() {
-  const res = await api.get("/OT")
-  ots.value = res.data
+async function loadOT(){
+const res = await api.get("/OT")
+ots.value = res.data
 }
 
-const filteredOT = computed(() => {
-  if (!selectedStatus.value) return ots.value
-  return ots.value.filter(
-    x => x.status === selectedStatus.value
-  )
+const filteredOT = computed(()=>{
+if(!selectedStatus.value) return ots.value
+return ots.value.filter(x=>x.status===selectedStatus.value)
 })
 
-const editOT = (id) => {
-  router.push(`/ot/edit/${id}`)
+function openDetail(ot){
+selectedOT.value = ot
 }
 
-/* ===== Format Date ===== */
-function formatDate(dateStr) {
-  if (!dateStr) return "-"
-  return dateStr.split("T")[0]
+function editOT(id){
+router.push(`/ot/edit/${id}`)
 }
 
-/* ===== Calculate Hours from Time ===== */
-function calculateHours(detail) {
-  if (!detail) return "-"
-
-  const [fh, fm] = detail.fromTime.split(":").map(Number)
-  const [th, tm] = detail.toTime.split(":").map(Number)
-
-  let from = fh + fm / 60
-  let to = th + tm / 60
-
-  if (to < from) {
-    to += 24 // support OT qua ngày
-  }
-
-  return (to - from).toFixed(2)
+function formatDate(date){
+if(!date) return "-"
+return date.split("T")[0]
 }
 
-/* ✅ After submit */
-async function handleSuccess() {
-  showRegister.value = false
-  await loadOT()
+function calculateHours(detail){
+
+if(!detail) return "-"
+
+const [fh,fm] = detail.fromTime.split(":").map(Number)
+const [th,tm] = detail.toTime.split(":").map(Number)
+
+let from = fh + fm/60
+let to = th + tm/60
+
+if(to < from){
+to += 24
 }
+
+return (to-from).toFixed(2)
+
+}
+
+async function handleSuccess(){
+showRegister.value=false
+await loadOT()
+}
+
 </script>
+
 
 <style scoped>
 
-.ot-page {
-  width: 100%;
+.ot-container{
+background:white;
+padding:30px;
+border-radius:16px;
 }
+
 
 /* HEADER */
-.header-ot{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:20px;
+
+.page-header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:20px;
 }
 
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #2b3674;
-}
 
-/* REGISTER BUTTON */
+/* BUTTON */
+
 .register-btn{
-  background: linear-gradient(90deg,#5b2cff,#7b61ff);
-  color:white;
-  border:none;
-  padding:10px 18px;
-  border-radius:10px;
-  font-weight:600;
-  cursor:pointer;
+background:linear-gradient(135deg,#6a5cff,#4318ff);
+color:white;
+padding:10px 18px;
+border-radius:10px;
+border:none;
+font-weight:600;
+cursor:pointer;
 }
 
 .register-btn:hover{
-  opacity:.9;
+opacity:.9;
 }
+
 
 /* FILTER */
-.filter-bar {
-  margin-bottom: 20px;
+
+.filter-bar{
+margin-bottom:20px;
 }
 
-.filter-bar select {
-  padding: 10px 15px;
-  border-radius: 10px;
-  border: 1px solid #ddd;
+.filter-bar select{
+padding:10px 15px;
+border-radius:10px;
+border:1px solid #ddd;
 }
 
-/* TABLE CARD */
-.table-card {
-  background: white;
-  border-radius: 18px;
-  padding: 35px 40px;
-  width: 100%;
-  box-sizing: border-box;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.06);
+
+/* GRID */
+
+.ot-list{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+gap:20px;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
+
+/* CARD */
+
+.ot-card{
+
+background:#f9fafc;
+padding:18px;
+border-radius:14px;
+border:1px solid #eee;
+
+cursor:pointer;
+transition:.25s;
+
+overflow:hidden;
+
 }
 
-th {
-  padding: 14px;
-  background: #f4f7fe;
-  color: #2b3674;
+.ot-card:hover{
+transform:translateY(-3px);
+box-shadow:0 6px 16px rgba(0,0,0,.08);
 }
 
-td {
-  padding: 14px;
-  border-bottom: 1px solid #eee;
+
+/* HEADER */
+
+.ot-header{
+display:flex;
+justify-content:space-between;
+font-weight:600;
 }
+
+
+/* HOURS */
+
+.ot-hours{
+margin-top:8px;
+font-size:14px;
+}
+
+
+/* REASON */
+
+.ot-reason{
+
+margin-top:10px;
+font-size:14px;
+color:#444;
+
+word-break:break-all;
+overflow-wrap:anywhere;
+
+display:-webkit-box;
+-webkit-line-clamp:2;
+-webkit-box-orient:vertical;
+
+overflow:hidden;
+
+}
+
+
+/* VIEW DETAIL */
+
+.view-detail{
+margin-top:12px;
+font-size:12px;
+color:#4318ff;
+}
+
 
 /* STATUS */
-.status {
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-weight: 600;
+
+.status{
+padding:4px 10px;
+border-radius:12px;
+font-size:12px;
 }
 
-.pending {
-  background: #fff3cd;
-  color: #856404;
+.pending{
+background:#fff5e6;
+color:#d97706;
 }
 
-.approved {
-  background: #d4edda;
-  color: #155724;
+.approved{
+background:#e6f9f0;
+color:#1a9b5c;
 }
 
-.rejected {
-  background: #f8d7da;
-  color: #721c24;
+.rejected{
+background:#ffe6e6;
+color:#dc2626;
 }
+
+
+/* MODAL */
+
+.modal-overlay{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.45);
+display:flex;
+align-items:center;
+justify-content:center;
+padding:20px;
+}
+
+.modal-card{
+
+background:white;
+padding:30px;
+border-radius:16px;
+
+width:650px;
+max-width:90vw;
+max-height:80vh;
+
+overflow:hidden;
+
+}
+
+
+/* REASON BOX */
+
+.reason-section{
+margin-top:10px;
+}
+
+.reason-box{
+
+margin-top:8px;
+padding:12px;
+
+border:1px solid #ddd;
+border-radius:8px;
+
+background:#fafafa;
+
+max-height:180px;
+overflow-y:auto;
+
+word-break:break-all;
+
+}
+
 
 /* BUTTON */
-.edit-btn {
-  background: #4318ff;
-  color: white;
-  border: none;
-  padding: 7px 14px;
-  border-radius: 8px;
-  cursor: pointer;
+
+.edit-btn{
+margin-top:15px;
+background:#4318ff;
+color:white;
+border:none;
+padding:8px 14px;
+border-radius:8px;
+cursor:pointer;
+margin-right:10px;
 }
 
-.empty {
-  text-align: center;
-  padding: 20px;
-  color: #999;
+.close-btn{
+margin-top:15px;
+background:#eee;
+border:none;
+padding:8px 14px;
+border-radius:8px;
+cursor:pointer;
 }
 
-/* REGISTER AREA */
+
+/* EMPTY */
+
+.empty{
+text-align:center;
+margin-top:20px;
+color:#999;
+}
+
+
+/* REGISTER */
+
 .register-wrapper{
-  background:white;
-  padding:25px;
-  border-radius:16px;
-  box-shadow:0 10px 30px rgba(0,0,0,.05);
+background:white;
+padding:25px;
+border-radius:16px;
+box-shadow:0 10px 30px rgba(0,0,0,.05);
 }
 
 .cancel-btn{
-  margin-top:15px;
-  border:none;
-  background:#eee;
-  padding:8px 14px;
-  border-radius:8px;
-  cursor:pointer;
+margin-top:15px;
+border:none;
+background:#eee;
+padding:8px 14px;
+border-radius:8px;
+cursor:pointer;
 }
+
+
+/* ANIMATION */
 
 .slide-fade-enter-active,
 .slide-fade-leave-active{
-  transition: all .35s ease;
+transition:all .35s ease;
 }
 
 .slide-fade-enter-from{
-  opacity:0;
-  transform:translateY(-25px);
-}
-
-.slide-fade-enter-to{
-  opacity:1;
-  transform:translateY(0);
-}
-
-.slide-fade-leave-from{
-  opacity:1;
-  transform:translateY(0);
+opacity:0;
+transform:translateY(-25px);
 }
 
 .slide-fade-leave-to{
-  opacity:0;
-  transform:translateY(-25px);
+opacity:0;
+transform:translateY(-25px);
+}
+
+
+/* RESPONSIVE */
+
+@media (max-width:1024px){
+
+.ot-list{
+grid-template-columns:repeat(2,1fr);
+}
+
+}
+
+@media (max-width:768px){
+
+.ot-list{
+grid-template-columns:1fr;
+}
+
+.page-header{
+flex-direction:column;
+align-items:flex-start;
+gap:10px;
+}
+
+.register-btn{
+width:100%;
+text-align:center;
+}
+
+.modal-card{
+width:100%;
+padding:20px;
+}
+
+.reason-box{
+max-height:140px;
+}
+
 }
 
 </style>
