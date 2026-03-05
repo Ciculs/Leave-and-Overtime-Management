@@ -56,8 +56,8 @@ namespace LeaveOTManagement.Controllers
                     leaveTypeId = unpaidLeave.Id,
                     leaveTypeName = unpaidLeave.Name,
                     totalDays = 0m,
-                    usedDays = 0m,
-                    remainingDays = 999m
+                    usedDays = (decimal?)0m,
+                    remainingDays = (decimal?)999m
                 });
             }
 
