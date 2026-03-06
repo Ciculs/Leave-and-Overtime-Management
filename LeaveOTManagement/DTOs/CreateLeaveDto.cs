@@ -8,10 +8,10 @@ namespace LeaveOTManagement.DTOs
         public int LeaveTypeId { get; set; }
 
         [Required]
-        public DateOnly FromDate { get; set; }
+        public DateOnly FromDate { get; set; } 
 
         [Required]
-        public DateOnly ToDate { get; set; }
+        public DateOnly ToDate { get; set; }   
 
         [Required]
         public decimal TotalDays { get; set; }
