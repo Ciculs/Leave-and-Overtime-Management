@@ -42,6 +42,11 @@ namespace LeaveOTManagement.Services
                     if (d.ToTime <= d.FromTime)
                         throw new Exception("Invalid time range");
 
+                    var start = d.WorkDate.Date + d.FromTime;
+
+                    if (start < DateTime.Now)
+                        throw new Exception("Cannot create OT in the past");
+
                     var hours = (decimal)(d.ToTime - d.FromTime).TotalHours;
 
                     _context.Otdetails.Add(new Otdetail
@@ -141,11 +146,12 @@ namespace LeaveOTManagement.Services
                     Reason = x.Reason,
                     Status = x.Status,
                     CreatedAt = x.CreatedAt ?? DateTime.MinValue,
+
                     Details = x.Otdetails.Select(d => new OtDetailDto
                     {
-                        WorkDate = d.WorkDate,
-                        FromTime = d.FromTime,
-                        ToTime = d.ToTime,
+                        WorkDate = d.WorkDate.ToString("yyyy-MM-dd"),
+                        FromTime = d.FromTime.ToString("HH:mm"),
+                        ToTime = d.ToTime.ToString("HH:mm"),
                         Hours = d.Hours
                     }).ToList()
                 })
@@ -180,6 +186,32 @@ namespace LeaveOTManagement.Services
             }
 
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<OtResponseDto?> GetOtByIdAsync(long id, int userId)
+        {
+            var ot = await _context.Otrequests
+                .Include(x => x.Otdetails)
+                .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+
+            if (ot == null)
+                return null;
+
+            return new OtResponseDto
+            {
+                Id = ot.Id,
+                Reason = ot.Reason ?? "",
+                Status = ot.Status ?? "",
+                CreatedAt = ot.CreatedAt ?? DateTime.MinValue,
+
+                Details = ot.Otdetails.Select(d => new OtDetailDto
+                {
+                    WorkDate = d.WorkDate.ToString("yyyy-MM-dd"),
+                    FromTime = d.FromTime.ToString("HH:mm"),
+                    ToTime = d.ToTime.ToString("HH:mm"),
+                    Hours = d.Hours
+                }).ToList()
+            };
         }
     }
 }

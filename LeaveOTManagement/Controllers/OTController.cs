@@ -62,5 +62,19 @@ namespace LeaveOTManagement.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(long id)
+        {
+            if (!TryGetUserId(out int userId))
+                return Unauthorized();
+
+            var result = await _service.GetOtByIdAsync(id, userId);
+
+            if (result == null)
+                return NotFound();
+
+            return Ok(result);
+        }
     }
 }

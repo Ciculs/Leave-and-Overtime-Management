@@ -1,172 +1,136 @@
 <template>
+  <div class="ot-container animate__animated animate__fadeIn">
+    <header class="page-header">
+      <div>
+        <h2 class="fw-bold mb-1">Overtime Management</h2>
+        <p class="text-secondary small">Track and manage your extra working hours</p>
+      </div>
 
-<div class="ot-container">
+      <button 
+        v-if="!showRegister" 
+        class="btn-register shadow-sm" 
+        @click="showRegister = true"
+      >
+        <i class="fas fa-plus-circle me-2"></i>New Request
+      </button>
+    </header>
 
-<!-- HEADER -->
-<div class="page-header">
+    <main v-if="!showRegister">
+      <div class="filter-bar d-flex justify-content-between align-items-center mb-4">
+        <div class="custom-select-wrapper">
+          <i class="fas fa-filter icon"></i>
+          <select v-model="selectedStatus" class="form-select border-0 shadow-sm">
+            <option value="">All Requests</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="text-secondary small">
+          Showing <strong>{{ filteredOT.length }}</strong> requests
+        </div>
+      </div>
 
-<h2>My OT Requests</h2>
+      <div class="ot-grid">
+        <transition-group name="list-complete">
+          <div
+            v-for="ot in filteredOT"
+            :key="ot.id"
+            class="ot-card"
+            @click="openDetail(ot)"
+          >
+            <div class="card-status-strip" :class="ot.status?.toLowerCase()"></div>
+            
+            <div class="ot-card-body">
+              <div class="d-flex justify-content-between align-items-start mb-3">
+                <span class="date-badge">
+                  <i class="far fa-calendar-alt me-2"></i>{{ formatDate(ot.details?.[0]?.workDate) }}
+                </span>
+                <span :class="['status-pill', ot.status?.toLowerCase()]">
+                  {{ ot.status }}
+                </span>
+              </div>
 
-<button
-v-if="!showRegister"
-class="register-btn"
-@click="showRegister = true"
->
-+ Register OT
-</button>
+              <div class="hour-display mb-2">
+                <span class="h4 fw-bold text-primary">{{ calculateHours(ot.details?.[0]) }}</span>
+                <span class="text-secondary ms-1">hrs</span>
+              </div>
 
-</div>
+              <p class="ot-reason-preview">{{ ot.reason }}</p>
 
+              <div class="view-detail-link">
+                <span>View Details</span>
+                <i class="fas fa-arrow-right"></i>
+              </div>
+            </div>
+          </div>
+        </transition-group>
+      </div>
 
-<!-- ================= LIST ================= -->
+      <div v-if="filteredOT.length === 0" class="empty-state">
+        <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" alt="empty" />
+        <p>No OT requests found matching your criteria.</p>
+      </div>
+    </main>
 
-<div v-if="!showRegister">
+    <teleport to="body">
+      <transition name="fade">
+        <div v-if="selectedOT" class="modal-overlay" @click.self="selectedOT = null">
+          <div class="modal-content-card animate__animated animate__zoomIn">
+            <div class="modal-header-custom">
+              <h4>Request Details</h4>
+              <button class="btn-close-modal" @click="selectedOT = null">&times;</button>
+            </div>
+            
+            <div class="modal-body-custom">
+              <div class="info-grid">
+                <div class="info-item">
+                  <label>Date</label>
+                  <span>{{ formatDate(selectedOT.details?.[0]?.workDate) }}</span>
+                </div>
+                <div class="info-item">
+                  <label>Duration</label>
+                  <span>{{ calculateHours(selectedOT.details?.[0]) }} Hours</span>
+                </div>
+                <div class="info-item">
+                  <label>Status</label>
+                  <span :class="['status-pill', selectedOT.status?.toLowerCase()]">{{ selectedOT.status }}</span>
+                </div>
+              </div>
 
-<!-- FILTER -->
-<div class="filter-bar">
+              <div class="reason-full mt-4">
+                <label class="fw-bold mb-2 d-block">Description / Reason</label>
+                <div class="reason-text-area">
+                  {{ selectedOT.reason }}
+                </div>
+              </div>
+            </div>
 
-<select v-model="selectedStatus">
+            <div class="modal-footer-custom">
+              <button class="btn-edit-action" @click="editOT(selectedOT.id)">
+                <i class="fas fa-edit me-2"></i>Edit Request
+              </button>
+              <button class="btn-secondary-custom" @click="selectedOT = null">Close</button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
 
-<option value="">All Status</option>
-<option>Pending</option>
-<option>Approved</option>
-<option>Rejected</option>
-
-</select>
-
-</div>
-
-
-<!-- CARD GRID -->
-
-<div class="ot-list">
-
-<div
-v-for="ot in filteredOT"
-:key="ot.id"
-class="ot-card"
-@click="openDetail(ot)"
->
-
-<div class="ot-header">
-
-<span class="ot-date">
-📅 {{ formatDate(ot.details?.[0]?.workDate) }}
-</span>
-
-<span :class="['status', ot.status?.toLowerCase()]">
-{{ ot.status }}
-</span>
-
-</div>
-
-<div class="ot-hours">
-⏱ {{ calculateHours(ot.details?.[0]) }} hours
-</div>
-
-<p class="ot-reason">
-{{ ot.reason }}
-</p>
-
-<div class="view-detail">
-Tap to view detail →
-</div>
-
-</div>
-
-<p v-if="filteredOT.length===0" class="empty">
-No OT Requests
-</p>
-
-</div>
-
-</div>
-
-
-<!-- ================= MODAL ================= -->
-
-<div
-v-if="selectedOT"
-class="modal-overlay"
-@click.self="selectedOT=null"
->
-
-<div class="modal-card">
-
-<h3>OT Request Detail</h3>
-
-<p>
-<strong>Date:</strong>
-{{ formatDate(selectedOT.details?.[0]?.workDate) }}
-</p>
-
-<p>
-<strong>Hours:</strong>
-{{ calculateHours(selectedOT.details?.[0]) }}
-</p>
-
-<p>
-<strong>Status:</strong>
-{{ selectedOT.status }}
-</p>
-
-<div class="reason-section">
-
-<strong>Reason:</strong>
-
-<div class="reason-box">
-{{ selectedOT.reason }}
-</div>
-
-</div>
-
-<button
-class="edit-btn"
-@click="editOT(selectedOT.id)"
->
-Edit
-</button>
-
-<button
-class="close-btn"
-@click="selectedOT=null"
->
-Close
-</button>
-
-</div>
-
-</div>
-
-
-<!-- ================= REGISTER ================= -->
-
-<transition name="slide-fade">
-
-<div v-if="showRegister" class="register-wrapper">
-
-<OTRequest @success="handleSuccess"/>
-
-<button
-class="cancel-btn"
-@click="showRegister=false"
->
-← Back to List
-</button>
-
-</div>
-
-</transition>
-
-</div>
-
+    <transition name="slide-up">
+      <div v-if="showRegister" class="register-container">
+        <OTRequest @success="handleSuccess" />
+        <button class="btn-back-list mt-4" @click="showRegister = false">
+          <i class="fas fa-chevron-left me-2"></i>Return to List
+        </button>
+      </div>
+    </transition>
+  </div>
 </template>
 
-
 <script setup>
-
-import {ref,computed,onMounted} from "vue"
-import {useRouter} from "vue-router"
+import { ref, computed, onMounted, onActivated } from "vue"
+import { useRouter } from "vue-router"
 import api from "@/services/api"
 import OTRequest from "./OTRequest.vue"
 
@@ -178,362 +142,355 @@ const selectedOT = ref(null)
 const selectedStatus = ref("")
 
 onMounted(loadOT)
+onActivated(loadOT)
 
-async function loadOT(){
-const res = await api.get("/OT")
-ots.value = res.data
-}
+/* LOAD DATA */
 
-const filteredOT = computed(()=>{
-if(!selectedStatus.value) return ots.value
-return ots.value.filter(x=>x.status===selectedStatus.value)
-})
+async function loadOT() {
 
-function openDetail(ot){
-selectedOT.value = ot
-}
+  try {
 
-function editOT(id){
-router.push(`/ot/edit/${id}`)
-}
+    const res = await api.get("/OT")
 
-function formatDate(date){
-if(!date) return "-"
-return date.split("T")[0]
-}
+    ots.value = res.data || []
 
-function calculateHours(detail){
+  } catch (err) {
 
-if(!detail) return "-"
+    console.error("Failed to fetch OT", err)
 
-const [fh,fm] = detail.fromTime.split(":").map(Number)
-const [th,tm] = detail.toTime.split(":").map(Number)
-
-let from = fh + fm/60
-let to = th + tm/60
-
-if(to < from){
-to += 24
-}
-
-return (to-from).toFixed(2)
+  }
 
 }
-
-async function handleSuccess(){
-showRegister.value=false
-await loadOT()
-}
-
-</script>
-
-
-<style scoped>
-
-.ot-container{
-background:white;
-padding:30px;
-border-radius:16px;
-}
-
-
-/* HEADER */
-
-.page-header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:20px;
-}
-
-
-/* BUTTON */
-
-.register-btn{
-background:linear-gradient(135deg,#6a5cff,#4318ff);
-color:white;
-padding:10px 18px;
-border-radius:10px;
-border:none;
-font-weight:600;
-cursor:pointer;
-}
-
-.register-btn:hover{
-opacity:.9;
-}
-
 
 /* FILTER */
 
-.filter-bar{
-margin-bottom:20px;
-}
+const filteredOT = computed(() => {
 
-.filter-bar select{
-padding:10px 15px;
-border-radius:10px;
-border:1px solid #ddd;
-}
+  if (!selectedStatus.value) return ots.value
 
+  return ots.value.filter(x => x.status === selectedStatus.value)
 
-/* GRID */
+})
 
-.ot-list{
-display:grid;
-grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
-gap:20px;
-}
+/* OPEN DETAIL */
 
+const openDetail = (ot) => {
 
-/* CARD */
-
-.ot-card{
-
-background:#f9fafc;
-padding:18px;
-border-radius:14px;
-border:1px solid #eee;
-
-cursor:pointer;
-transition:.25s;
-
-overflow:hidden;
+  selectedOT.value = ot
 
 }
 
-.ot-card:hover{
-transform:translateY(-3px);
-box-shadow:0 6px 16px rgba(0,0,0,.08);
+/* EDIT */
+
+const editOT = (id) => {
+
+  router.push(`/ot/edit/${id}`)
+
 }
 
+/* FORMAT DATE */
+
+const formatDate = (dateStr) => {
+
+  if (!dateStr) return "N/A"
+
+  const d = new Date(dateStr)
+
+  return d.toLocaleDateString("en-US", {
+
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+
+  })
+
+}
+
+/* CALCULATE HOURS */
+
+const calculateHours = (detail) => {
+
+  if (!detail?.fromTime || !detail?.toTime) return "0.00"
+
+  const parse = (t) => {
+
+    const [h,m] = t.split(":").map(Number)
+
+    return h + m/60
+
+  }
+
+  const from = parse(detail.fromTime)
+  const to = parse(detail.toTime)
+
+  const diff = to < from ? (to + 24) - from : to - from
+
+  return diff.toFixed(2)
+
+}
+
+/* AFTER CREATE SUCCESS */
+
+const handleSuccess = async () => {
+
+  showRegister.value = false
+
+  await loadOT()
+
+}
+</script>
+
+<style scoped>
+/* GENERAL */
+.ot-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #f8f9fc;
+  min-height: 100vh;
+}
 
 /* HEADER */
-
-.ot-header{
-display:flex;
-justify-content:space-between;
-font-weight:600;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
 }
 
-
-/* HOURS */
-
-.ot-hours{
-margin-top:8px;
-font-size:14px;
+.btn-register {
+  background: linear-gradient(135deg, #4318ff 0%, #5e35ff 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
-
-/* REASON */
-
-.ot-reason{
-
-margin-top:10px;
-font-size:14px;
-color:#444;
-
-word-break:break-all;
-overflow-wrap:anywhere;
-
-display:-webkit-box;
--webkit-line-clamp:2;
--webkit-box-orient:vertical;
-
-overflow:hidden;
-
+.btn-register:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(67, 24, 255, 0.2);
 }
 
-
-/* VIEW DETAIL */
-
-.view-detail{
-margin-top:12px;
-font-size:12px;
-color:#4318ff;
+/* FILTER */
+.custom-select-wrapper {
+  position: relative;
+  width: 200px;
 }
 
-
-/* STATUS */
-
-.status{
-padding:4px 10px;
-border-radius:12px;
-font-size:12px;
+.custom-select-wrapper .icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a3b1cc;
+  z-index: 1;
 }
 
-.pending{
-background:#fff5e6;
-color:#d97706;
+.custom-select-wrapper select {
+  padding-left: 35px;
+  border-radius: 10px;
+  cursor: pointer;
 }
 
-.approved{
-background:#e6f9f0;
-color:#1a9b5c;
+/* GRID & CARDS */
+.ot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
 }
 
-.rejected{
-background:#ffe6e6;
-color:#dc2626;
+.ot-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(0,0,0,0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
-
-/* MODAL */
-
-.modal-overlay{
-position:fixed;
-inset:0;
-background:rgba(0,0,0,.45);
-display:flex;
-align-items:center;
-justify-content:center;
-padding:20px;
+.ot-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
 }
 
-.modal-card{
-
-background:white;
-padding:30px;
-border-radius:16px;
-
-width:650px;
-max-width:90vw;
-max-height:80vh;
-
-overflow:hidden;
-
+.card-status-strip {
+  height: 4px;
+  width: 100%;
 }
 
-
-/* REASON BOX */
-
-.reason-section{
-margin-top:10px;
+.ot-card-body {
+  padding: 1.5rem;
 }
 
-.reason-box{
-
-margin-top:8px;
-padding:12px;
-
-border:1px solid #ddd;
-border-radius:8px;
-
-background:#fafafa;
-
-max-height:180px;
-overflow-y:auto;
-
-word-break:break-all;
-
+/* STATUS PILLS */
+.status-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
+.status-pill.pending, .card-status-strip.pending { background: #fff7ed; color: #c2410c; }
+.status-pill.approved, .card-status-strip.approved { background: #f0fdf4; color: #15803d; }
+.status-pill.rejected, .card-status-strip.rejected { background: #fef2f2; color: #b91c1c; }
 
-/* BUTTON */
-
-.edit-btn{
-margin-top:15px;
-background:#4318ff;
-color:white;
-border:none;
-padding:8px 14px;
-border-radius:8px;
-cursor:pointer;
-margin-right:10px;
+.date-badge {
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #475569;
 }
 
-.close-btn{
-margin-top:15px;
-background:#eee;
-border:none;
-padding:8px 14px;
-border-radius:8px;
-cursor:pointer;
+.ot-reason-preview {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #444;
+  word-break: break-word; /* Thay cho break-all để tránh cắt ngang từ */
+  overflow: hidden;
+
+  /* Bộ 3 thuộc tính thần thánh để cắt dòng */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* Hiển thị tối đa 2 dòng */
+  
+  /* Fallback cho các trình duyệt cực cũ không hỗ trợ */
+  max-height: 3em; 
+  line-height: 1.5em;
 }
 
-
-/* EMPTY */
-
-.empty{
-text-align:center;
-margin-top:20px;
-color:#999;
+.view-detail-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #4318ff;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
-
-/* REGISTER */
-
-.register-wrapper{
-background:white;
-padding:25px;
-border-radius:16px;
-box-shadow:0 10px 30px rgba(0,0,0,.05);
+/* MODAL STYLING */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-.cancel-btn{
-margin-top:15px;
-border:none;
-background:#eee;
-padding:8px 14px;
-border-radius:8px;
-cursor:pointer;
+.modal-content-card {
+  background: white;
+  width: 550px;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  overflow: hidden;
 }
 
-
-/* ANIMATION */
-
-.slide-fade-enter-active,
-.slide-fade-leave-active{
-transition:all .35s ease;
+.modal-header-custom {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.slide-fade-enter-from{
-opacity:0;
-transform:translateY(-25px);
+.modal-body-custom {
+  padding: 2rem;
 }
 
-.slide-fade-leave-to{
-opacity:0;
-transform:translateY(-25px);
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
 }
 
+.info-item label {
+  display: block;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.info-item span {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.reason-text-area {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  min-height: 100px;
+  color: #475569;
+}
+
+.modal-footer-custom {
+  padding: 1.5rem 2rem;
+  background: #f8fafc;
+  display: flex;
+  gap: 12px;
+}
+
+.btn-edit-action {
+  background: #4318ff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.btn-secondary-custom {
+  background: white;
+  border: 1px solid #e2e8f0;
+  padding: 10px 20px;
+  border-radius: 10px;
+}
+
+/* ANIMATIONS */
+.list-complete-enter-from,
+.list-complete-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.list-complete-leave-active {
+  position: absolute;
+}
+
+.slide-up-enter-active {
+  transition: all 0.4s ease-out;
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(40px);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 0;
+}
+
+.empty-state img {
+  width: 120px;
+  opacity: 0.5;
+  margin-bottom: 1.5rem;
+}
 
 /* RESPONSIVE */
-
-@media (max-width:1024px){
-
-.ot-list{
-grid-template-columns:repeat(2,1fr);
+@media (max-width: 768px) {
+  .ot-container { padding: 1rem; }
+  .page-header { flex-direction: column; align-items: stretch; gap: 15px; }
+  .info-grid { grid-template-columns: 1fr; gap: 20px; }
 }
-
-}
-
-@media (max-width:768px){
-
-.ot-list{
-grid-template-columns:1fr;
-}
-
-.page-header{
-flex-direction:column;
-align-items:flex-start;
-gap:10px;
-}
-
-.register-btn{
-width:100%;
-text-align:center;
-}
-
-.modal-card{
-width:100%;
-padding:20px;
-}
-
-.reason-box{
-max-height:140px;
-}
-
-}
-
 </style>
