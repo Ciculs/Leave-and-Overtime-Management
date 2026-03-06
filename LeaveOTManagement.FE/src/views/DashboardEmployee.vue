@@ -2,7 +2,6 @@
   <div class="dashboard">
     <div class="header-row">
       <h1>Employee Dashboard</h1>
-      <button class="btn-create" @click="goToLeaveRequest">+ Create Leave</button>
     </div>
 
     <div class="card-container">
