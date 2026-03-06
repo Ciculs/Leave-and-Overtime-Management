@@ -31,10 +31,12 @@
 </template>
 
 <script setup>
-import { reactive } from "vue"
+import { reactive, ref, computed } from "vue"
 import api from "@/services/api"
 
 const emit = defineEmits(["success"])
+
+const loading = ref(false)
 
 const form = reactive({
   date: "",
@@ -43,7 +45,25 @@ const form = reactive({
   reason: ""
 })
 
+/* OT HOURS PREVIEW */
+
+const hours = computed(() => {
+
+  if(!form.fromTime || !form.toTime) return 0
+
+  const start = new Date(`2000-01-01T${form.fromTime}`)
+  const end = new Date(`2000-01-01T${form.toTime}`)
+
+  const diff = (end - start) / (1000*60*60)
+
+  return diff > 0 ? diff.toFixed(2) : 0
+
+})
+
+/* SUBMIT */
+
 const submit = async () => {
+
   try {
 
     if (form.toTime <= form.fromTime) {
@@ -51,23 +71,46 @@ const submit = async () => {
       return
     }
 
+    loading.value = true
+
     const payload = {
-      reason: form.reason,
-      details: [{
-        workDate: new Date(form.date).toISOString(),
-        fromTime: form.fromTime + ":00",
-        toTime: form.toTime + ":00"
-      }]
+
+  reason: form.reason,
+
+  details: [
+    {
+      workDate: form.date + "T00:00:00",
+      fromTime: form.fromTime + ":00",
+      toTime: form.toTime + ":00"
     }
+  ]
+
+}
 
     await api.post("/OT", payload)
+
+    alert("OT request created")
+
+    /* reset form */
+
+    form.date = ""
+    form.fromTime = ""
+    form.toTime = ""
+    form.reason = ""
 
     emit("success")
 
   } catch (err) {
+
     console.error(err)
     alert("Submit failed")
+
+  } finally {
+
+    loading.value = false
+
   }
+
 }
 </script>
 

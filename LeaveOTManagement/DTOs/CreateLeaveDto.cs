@@ -14,7 +14,9 @@ namespace LeaveOTManagement.DTOs
         public DateOnly ToDate { get; set; }
 
         [Required]
-        [MaxLength(1000, ErrorMessage = "Lý do không được quá 1000 ký tự")]
+        public decimal TotalDays { get; set; }
+
+        [Required]
         public string Reason { get; set; }
     }
 }
