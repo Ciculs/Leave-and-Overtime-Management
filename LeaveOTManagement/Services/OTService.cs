@@ -149,9 +149,9 @@ namespace LeaveOTManagement.Services
 
                     Details = x.Otdetails.Select(d => new OtDetailDto
                     {
-                        WorkDate = d.WorkDate.ToString("yyyy-MM-dd"),
-                        FromTime = d.FromTime.ToString("HH:mm"),
-                        ToTime = d.ToTime.ToString("HH:mm"),
+                        WorkDate = d.WorkDate,
+                        FromTime = d.FromTime,
+                        ToTime = d.ToTime,
                         Hours = d.Hours
                     }).ToList()
                 })
@@ -206,9 +206,9 @@ namespace LeaveOTManagement.Services
 
                 Details = ot.Otdetails.Select(d => new OtDetailDto
                 {
-                    WorkDate = d.WorkDate.ToString("yyyy-MM-dd"),
-                    FromTime = d.FromTime.ToString("HH:mm"),
-                    ToTime = d.ToTime.ToString("HH:mm"),
+                    WorkDate = d.WorkDate,
+                    FromTime = d.FromTime,
+                    ToTime = d.ToTime,
                     Hours = d.Hours
                 }).ToList()
             };
