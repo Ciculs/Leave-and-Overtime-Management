@@ -12,7 +12,7 @@ import OTEdit from "../views/OTEdit.vue"
 
 import HolidayList from "../views/HolidayList.vue"
 import Reports from "../views/Reports.vue"
-import LeaveTable from "@/components/LeaveTable.vue"
+import LeaveTable from "@/views/LeaveTable.vue"
 
 const routes = [
   {

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { getHolidays, importHoliday } from "../services/holidayService";
-import HolidayCalendar from "../components/HolidayCalendar.vue";
+import HolidayCalendar from "./HolidayCalendar.vue";
 
 const holidays = ref([]);
 const selectedFile = ref(null);
@@ -19,7 +19,7 @@ const loadHolidays = async () => {
 
 const handleImport = async () => {
   if (!selectedFile.value) {
-    alert("Please select a file");
+    window.$toast("Please select a file", "warning");
     return;
   }
 
@@ -27,10 +27,11 @@ const handleImport = async () => {
     loading.value = true;
     await importHoliday(selectedFile.value);
     await loadHolidays();
-    alert("Import successful");
+
+    window.$toast("Holiday import successful", "success");
   } catch (error) {
     console.error(error);
-    alert("Import failed");
+    window.$toast("Holiday import failed", "error");
   } finally {
     loading.value = false;
   }
@@ -62,17 +63,11 @@ onMounted(async () => {
 
           <!-- VIEW TOGGLE -->
           <div class="view-toggle">
-            <button
-              :class="{ active: viewMode === 'list' }"
-              @click="viewMode = 'list'"
-            >
+            <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
               List
             </button>
 
-            <button
-              :class="{ active: viewMode === 'calendar' }"
-              @click="viewMode = 'calendar'"
-            >
+            <button :class="{ active: viewMode === 'calendar' }" @click="viewMode = 'calendar'">
               Calendar
             </button>
           </div>
@@ -84,11 +79,7 @@ onMounted(async () => {
               Choose File
             </label>
 
-            <button
-              class="btn-import"
-              :disabled="loading"
-              @click="handleImport"
-            >
+            <button class="btn-import" :disabled="loading" @click="handleImport">
               {{ loading ? "Importing..." : "Import" }}
             </button>
           </div>
@@ -100,16 +91,10 @@ onMounted(async () => {
       <div class="card-body">
 
         <!-- CALENDAR VIEW -->
-        <HolidayCalendar
-          v-if="viewMode === 'calendar'"
-          :holidays="holidays"
-        />
+        <HolidayCalendar v-if="viewMode === 'calendar'" :holidays="holidays" />
 
         <!-- LIST VIEW -->
-        <table
-          v-else-if="holidays.length > 0"
-          class="holiday-table"
-        >
+        <table v-else-if="holidays.length > 0" class="holiday-table">
           <thead>
             <tr>
               <th>#</th>
