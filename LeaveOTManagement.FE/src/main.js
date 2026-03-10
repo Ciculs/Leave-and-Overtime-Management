@@ -5,6 +5,8 @@ import { createPinia } from 'pinia'
 
 import 'bootstrap/dist/css/bootstrap.min.css'
 
+localStorage.clear()
+
 const app = createApp(App)
 
 app.use(createPinia())

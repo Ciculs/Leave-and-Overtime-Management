@@ -3,7 +3,9 @@
     <h2>Register OT</h2>
 
     <form @submit.prevent="submit">
+
       <div class="row">
+
         <div class="field">
           <label>Date</label>
           <input type="date" v-model="form.date" required />
@@ -18,6 +20,7 @@
           <label>To</label>
           <input type="time" v-model="form.toTime" required />
         </div>
+
       </div>
 
       <div class="field">
@@ -25,16 +28,30 @@
         <textarea v-model="form.reason" required />
       </div>
 
-      <button class="primary">Submit</button>
+      <div class="actions">
+
+        <button type="button" class="primary-outline" @click="$emit('cancel')">
+          <i class="fas fa-chevron-left me-2"></i>
+          Return to List
+        </button>
+
+        <button type="submit" class="primary" :disabled="loading">
+          <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+
+          {{ loading ? "Submitting..." : "Submit" }}
+        </button>
+
+      </div>
+
     </form>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, computed } from "vue"
+import { reactive, ref } from "vue"
 import api from "@/services/api"
 
-const emit = defineEmits(["success"])
+const emit = defineEmits(["success", "cancel"])
 
 const loading = ref(false)
 
@@ -45,29 +62,12 @@ const form = reactive({
   reason: ""
 })
 
-/* OT HOURS PREVIEW */
-
-const hours = computed(() => {
-
-  if(!form.fromTime || !form.toTime) return 0
-
-  const start = new Date(`2000-01-01T${form.fromTime}`)
-  const end = new Date(`2000-01-01T${form.toTime}`)
-
-  const diff = (end - start) / (1000*60*60)
-
-  return diff > 0 ? diff.toFixed(2) : 0
-
-})
-
-/* SUBMIT */
-
 const submit = async () => {
 
   try {
 
     if (form.toTime <= form.fromTime) {
-      alert("Invalid time range")
+      window.$toast("Invalid time range", "warning")
       return
     }
 
@@ -75,23 +75,21 @@ const submit = async () => {
 
     const payload = {
 
-  reason: form.reason,
+      reason: form.reason,
 
-  details: [
-    {
-      workDate: form.date + "T00:00:00",
-      fromTime: form.fromTime + ":00",
-      toTime: form.toTime + ":00"
+      details: [
+        {
+          workDate: form.date + "T00:00:00",
+          fromTime: form.fromTime + ":00",
+          toTime: form.toTime + ":00"
+        }
+      ]
+
     }
-  ]
-
-}
 
     await api.post("/OT", payload)
 
-    alert("OT request created")
-
-    /* reset form */
+    window.$toast("OT request created successfully", "success")
 
     form.date = ""
     form.fromTime = ""
@@ -100,12 +98,16 @@ const submit = async () => {
 
     emit("success")
 
-  } catch (err) {
+  }
+
+  catch (err) {
 
     console.error(err)
-    alert("Submit failed")
+    window.$toast("Submit failed", "error")
 
-  } finally {
+  }
+
+  finally {
 
     loading.value = false
 
@@ -119,7 +121,7 @@ const submit = async () => {
   background: white;
   padding: 30px;
   border-radius: 18px;
-  box-shadow: 0 15px 40px rgba(0,0,0,.08);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, .08);
 }
 
 .row {
@@ -134,18 +136,41 @@ const submit = async () => {
   margin-bottom: 18px;
 }
 
-input, textarea {
+input,
+textarea {
   padding: 10px;
   border-radius: 10px;
   border: 1px solid #ddd;
 }
 
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
 .primary {
-  background: #5b2cff;
+  background: linear-gradient(135deg, #5b2cff, #6a5cff);
   color: white;
   border: none;
-  padding: 12px;
+  padding: 12px 22px;
   border-radius: 12px;
   cursor: pointer;
+  font-weight: 600;
+}
+
+.primary-outline {
+  background: white;
+  border: 2px solid #5b2cff;
+  color: #5b2cff;
+  padding: 12px 22px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.primary-outline:hover {
+  background: #5b2cff;
+  color: white;
 }
 </style>
