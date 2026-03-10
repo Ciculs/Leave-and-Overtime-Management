@@ -86,21 +86,19 @@ const router = createRouter({
 })
 
 /* ✅ FIXED ROUTER GUARD */
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const token = localStorage.getItem("token")
   const role = localStorage.getItem("role")
 
-  if (to.matched.some(record => record.meta.requiresAuth) && !token) {
-    return next("/login")
+  if (to.meta.requiresAuth && !token) {
+    return "/login"
   }
 
-  const requiredRole = to.matched.find(r => r.meta.role)?.meta.role
-
-  if (requiredRole && requiredRole !== role) {
-    return next("/login")
+  if (to.meta.role && to.meta.role !== role) {
+    return "/login"
   }
 
-  next()
+  return true
 })
 
 export default router
