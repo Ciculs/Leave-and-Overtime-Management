@@ -84,7 +84,7 @@ builder.Services.AddDbContext<LeaveOTContext>(options =>
 // ===============================
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOTService, OTService>();
-
+builder.Services.AddScoped<LeaveService>();
 // ===============================
 // CORS
 // ===============================

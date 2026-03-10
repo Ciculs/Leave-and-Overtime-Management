@@ -13,7 +13,7 @@ import OTEdit from "../views/OTEdit.vue"
 import HolidayList from "../views/HolidayList.vue"
 import Reports from "../views/Reports.vue"
 import LeaveTable from "@/views/LeaveTable.vue"
-
+import TeamCalendar from "../views/TeamCalendar.vue"
 const routes = [
   {
     path: "/login",
@@ -70,6 +70,11 @@ const routes = [
         path: "my-leaves", 
         component: LeaveTable, 
         meta: { role: "Employee" } 
+      },
+      {
+        path: "team-calendar",
+        component: TeamCalendar,
+        meta: { role: "Manager" }
       }
     ]
   }
