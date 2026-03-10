@@ -1,11 +1,12 @@
 using LeaveOTManagement.Data;
 using LeaveOTManagement.DTOs;
 using LeaveOTManagement.Models.Entities;
+using LeaveOTManagement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using LeaveOTManagement.Services;
+
 namespace LeaveOTManagement.Controllers
 {
     [Route("api/[controller]")]
@@ -25,6 +26,7 @@ namespace LeaveOTManagement.Controllers
         /* =====================================================
            GET LEAVE BALANCES
         ===================================================== */
+
         [HttpGet("balances")]
         public async Task<IActionResult> GetBalances()
         {
@@ -41,7 +43,8 @@ namespace LeaveOTManagement.Controllers
                     TotalDays = b.TotalDays,
                     UsedDays = b.UsedDays,
                     RemainingDays = b.TotalDays - b.UsedDays
-                }).ToListAsync();
+                })
+                .ToListAsync();
 
             var unpaidLeave = await _context.LeaveTypes
                 .FirstOrDefaultAsync(l => l.MaxDaysPerYear == null);
@@ -64,6 +67,7 @@ namespace LeaveOTManagement.Controllers
         /* =====================================================
            GET MY LEAVE REQUESTS
         ===================================================== */
+
         [HttpGet("my")]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> GetMyLeaves()
@@ -93,12 +97,15 @@ namespace LeaveOTManagement.Controllers
         /* =====================================================
            SUBMIT LEAVE REQUEST
         ===================================================== */
+
         [HttpPost]
+        [Authorize(Roles = "Employee")]
         public async Task<IActionResult> SubmitLeave([FromBody] CreateLeaveDto request)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
             /* CHECK OVERLAPPING LEAVE */
+
             var isOverlapping = await _context.LeaveRequests
                 .AnyAsync(r => r.UserId == userId
                             && r.Status != "Rejected"
@@ -115,6 +122,7 @@ namespace LeaveOTManagement.Controllers
             }
 
             /* CHECK LEAVE BALANCE */
+
             var leaveType = await _context.LeaveTypes.FindAsync(request.LeaveTypeId);
 
             if (leaveType != null && leaveType.MaxDaysPerYear != null)
@@ -135,6 +143,7 @@ namespace LeaveOTManagement.Controllers
             }
 
             /* CREATE LEAVE REQUEST */
+
             var newLeave = new LeaveRequest
             {
                 UserId = userId,
@@ -152,6 +161,7 @@ namespace LeaveOTManagement.Controllers
             await _context.SaveChangesAsync();
 
             /* CREATE APPROVAL FOR MANAGER */
+
             var user = await _context.Users.FindAsync(userId);
 
             if (user?.ManagerId != null)
@@ -174,18 +184,20 @@ namespace LeaveOTManagement.Controllers
                 message = "Gửi yêu cầu nghỉ phép thành công!"
             });
         }
+
         /* =====================================================
-        TEAM CALENDAR (MANAGER)
+           TEAM CALENDAR (MANAGER)
         ===================================================== */
+
         [HttpGet("team-calendar")]
         [Authorize(Roles = "Manager")]
-        public async Task<IActionResult> GetTeamCalendar()
+        public async Task<IActionResult> GetTeamCalendar(int year, int month)
         {
             var managerId = int.Parse(
                 User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0"
             );
 
-            var data = await _leaveService.GetTeamCalendar(managerId);
+            var data = await _leaveService.GetTeamCalendar(managerId, year, month);
 
             return Ok(data);
         }
