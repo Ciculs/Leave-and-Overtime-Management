@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-
+using LeaveOTManagement.Services;
 namespace LeaveOTManagement.Controllers
 {
     [Route("api/[controller]")]
@@ -14,10 +14,12 @@ namespace LeaveOTManagement.Controllers
     public class LeaveController : ControllerBase
     {
         private readonly LeaveOTContext _context;
+        private readonly LeaveService _leaveService;
 
-        public LeaveController(LeaveOTContext context)
+        public LeaveController(LeaveOTContext context, LeaveService leaveService)
         {
             _context = context;
+            _leaveService = leaveService;
         }
 
         /* =====================================================
@@ -171,6 +173,21 @@ namespace LeaveOTManagement.Controllers
             {
                 message = "Gửi yêu cầu nghỉ phép thành công!"
             });
+        }
+        /* =====================================================
+        TEAM CALENDAR (MANAGER)
+        ===================================================== */
+        [HttpGet("team-calendar")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> GetTeamCalendar()
+        {
+            var managerId = int.Parse(
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0"
+            );
+
+            var data = await _leaveService.GetTeamCalendar(managerId);
+
+            return Ok(data);
         }
     }
 }
