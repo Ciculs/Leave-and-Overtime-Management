@@ -63,6 +63,126 @@ namespace LeaveOTManagement.Controllers
 
             return Ok(balances);
         }
+        /* =====================================================
+           MANAGER LEAVE CONTROLLER STATS
+        ===================================================== */
+        [HttpGet("manager-stats")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> GetManagerStats()
+        {
+            var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            var pendingLeave = await _context.LeaveRequests
+                .Include(l => l.User)
+                .CountAsync(l => l.Status == "Pending" && l.CurrentApprovalLevel == 1 && l.User.ManagerId == managerId);
+
+            var pendingOt = await _context.Otrequests
+                .Include(o => o.User)
+                .CountAsync(o => o.Status == "Pending" && o.CurrentApprovalLevel == 1 && o.User.ManagerId == managerId);
+
+            var teamMembers = await _context.Users
+                .CountAsync(u => u.ManagerId == managerId && u.IsActive == true);
+
+            return Ok(new
+            {
+                pendingLeave = pendingLeave,
+                pendingOt = pendingOt,
+                teamMembers = teamMembers
+            });
+        }
+        
+        /* =====================================================
+           MANAGER LEAVE CONTROLLER
+        ===================================================== */
+        [HttpPut("manager-approve/{id}")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> ManagerApprove(long id)
+        {
+            var leave = await _context.LeaveRequests.FindAsync(id);
+            if (leave == null) return NotFound();
+
+            leave.Status = "Pending";
+            leave.CurrentApprovalLevel = 2;
+
+            var approval = await _context.Approvals
+                .FirstOrDefaultAsync(a => a.RequestId == id && a.ApprovalLevel == 1 && a.RequestType == "Leave");
+
+            if (approval != null)
+            {
+                approval.Status = "Approved";
+            }
+
+            var hrUsers = await _context.Users
+                .Include(u => u.Role)
+                .Where(u => u.Role.Name == "HR")
+                .ToListAsync();
+
+            foreach (var hr in hrUsers)
+            {
+                _context.Approvals.Add(new Approval
+                {
+                    RequestId = leave.Id,
+                    RequestType = "Leave",
+                    ApprovalLevel = 2,
+                    ApproverId = hr.Id,
+                    Status = "Pending"
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPut("manager-reject/{id}")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> ManagerReject(long id, [FromBody] RejectDto dto)
+        {
+            var leave = await _context.LeaveRequests.FindAsync(id);
+            if (leave == null) return NotFound();
+
+            leave.Status = "Rejected";
+            leave.Reason = leave.Reason + " | Rejected by Manager: " + dto.Reason;
+
+            var approval = await _context.Approvals
+                .FirstOrDefaultAsync(a => a.RequestId == id && a.ApprovalLevel == 1 && a.RequestType == "Leave");
+
+            if (approval != null)
+            {
+                approval.Status = "Rejected";
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        /* =====================================================
+           MANAGER GET PENDING
+        ===================================================== */
+        [HttpGet("pending-manager")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> GetPendingForManager()
+        {
+            var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            var leaves = await _context.LeaveRequests
+                .Include(l => l.User)
+                .Include(l => l.LeaveType)
+                .Where(l => l.Status == "Pending" && l.CurrentApprovalLevel == 1 && l.User.ManagerId == managerId)
+                .Select(l => new
+                {
+                    Id = l.Id,
+                    EmployeeName = l.User.FullName,
+                    LeaveType = l.LeaveType.Name,
+                    FromDate = l.FromDate,
+                    ToDate = l.ToDate,
+                    TotalDays = l.TotalDays,
+                    Reason = l.Reason,
+                    Status = l.Status
+                })
+                .ToListAsync();
+
+            return Ok(leaves);
+        }
 
         /* =====================================================
            GET MY LEAVE REQUESTS
@@ -86,7 +206,7 @@ namespace LeaveOTManagement.Controllers
                     ToDate = l.ToDate,
                     TotalDays = l.TotalDays,
                     Reason = l.Reason,
-                    Status = l.Status,
+                    Status = l.Status == "Pending" && l.CurrentApprovalLevel == 2 ? "Pending HR" : l.Status,
                     CreatedAt = l.CreatedAt
                 })
                 .ToListAsync();
