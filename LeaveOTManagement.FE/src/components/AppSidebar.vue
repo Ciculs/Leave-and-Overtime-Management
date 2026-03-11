@@ -31,9 +31,14 @@
       </template>
 
       <!-- MANAGER -->
+      <!-- MANAGER -->
       <template v-if="role === 'Manager'">
-        <router-link to="/manager" class="nav-item">
+        <router-link to="/team-approvals" class="nav-item">
           ✅ <span v-if="!collapsed">Team Approvals</span>
+        </router-link>
+
+        <router-link to="/team-calendar" class="nav-item">
+          📅 <span v-if="!collapsed">Team Calendar</span>
         </router-link>
       </template>
 

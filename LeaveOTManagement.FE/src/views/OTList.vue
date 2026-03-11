@@ -6,11 +6,7 @@
         <p class="text-secondary small">Track and manage your extra working hours</p>
       </div>
 
-      <button 
-        v-if="!showRegister" 
-        class="btn-register shadow-sm" 
-        @click="showRegister = true"
-      >
+      <button v-if="!showRegister" class="btn-register shadow-sm" @click="showRegister = true">
         <i class="fas fa-plus-circle me-2"></i>New Request
       </button>
     </header>
@@ -33,14 +29,9 @@
 
       <div class="ot-grid">
         <transition-group name="list-complete">
-          <div
-            v-for="ot in filteredOT"
-            :key="ot.id"
-            class="ot-card"
-            @click="openDetail(ot)"
-          >
+          <div v-for="ot in filteredOT" :key="ot.id" class="ot-card" @click="openDetail(ot)">
             <div class="card-status-strip" :class="ot.status?.toLowerCase()"></div>
-            
+
             <div class="ot-card-body">
               <div class="d-flex justify-content-between align-items-start mb-3">
                 <span class="date-badge">
@@ -81,7 +72,7 @@
               <h4>Request Details</h4>
               <button class="btn-close-modal" @click="selectedOT = null">&times;</button>
             </div>
-            
+
             <div class="modal-body-custom">
               <div class="info-grid">
                 <div class="info-item">
@@ -119,10 +110,7 @@
 
     <transition name="slide-up">
       <div v-if="showRegister" class="register-container">
-        <OTRequest @success="handleSuccess" />
-        <button class="btn-back-list mt-4" @click="showRegister = false">
-          <i class="fas fa-chevron-left me-2"></i>Return to List
-        </button>
+        <OTRequest @success="handleSuccess" @cancel="showRegister = false" />
       </div>
     </transition>
   </div>
@@ -214,9 +202,9 @@ const calculateHours = (detail) => {
 
   const parse = (t) => {
 
-    const [h,m] = t.split(":").map(Number)
+    const [h, m] = t.split(":").map(Number)
 
-    return h + m/60
+    return h + m / 60
 
   }
 
@@ -306,14 +294,14 @@ const handleSuccess = async () => {
   border-radius: 16px;
   overflow: hidden;
   position: relative;
-  border: 1px solid rgba(0,0,0,0.04);
+  border: 1px solid rgba(0, 0, 0, 0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
 
 .ot-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
 .card-status-strip {
@@ -335,9 +323,23 @@ const handleSuccess = async () => {
   letter-spacing: 0.5px;
 }
 
-.status-pill.pending, .card-status-strip.pending { background: #fff7ed; color: #c2410c; }
-.status-pill.approved, .card-status-strip.approved { background: #f0fdf4; color: #15803d; }
-.status-pill.rejected, .card-status-strip.rejected { background: #fef2f2; color: #b91c1c; }
+.status-pill.pending,
+.card-status-strip.pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-pill.approved,
+.card-status-strip.approved {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.status-pill.rejected,
+.card-status-strip.rejected {
+  background: #fef2f2;
+  color: #b91c1c;
+}
 
 .date-badge {
   background: #f1f5f9;
@@ -351,16 +353,18 @@ const handleSuccess = async () => {
   margin-top: 10px;
   font-size: 14px;
   color: #444;
-  word-break: break-word; /* Thay cho break-all để tránh cắt ngang từ */
+  word-break: break-word;
+  /* Thay cho break-all để tránh cắt ngang từ */
   overflow: hidden;
 
   /* Bộ 3 thuộc tính thần thánh để cắt dòng */
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2; /* Hiển thị tối đa 2 dòng */
-  
+  -webkit-line-clamp: 2;
+  /* Hiển thị tối đa 2 dòng */
+
   /* Fallback cho các trình duyệt cực cũ không hỗ trợ */
-  max-height: 3em; 
+  max-height: 3em;
   line-height: 1.5em;
 }
 
@@ -389,7 +393,7 @@ const handleSuccess = async () => {
   background: white;
   width: 550px;
   border-radius: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
 }
 
@@ -489,8 +493,19 @@ const handleSuccess = async () => {
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
-  .ot-container { padding: 1rem; }
-  .page-header { flex-direction: column; align-items: stretch; gap: 15px; }
-  .info-grid { grid-template-columns: 1fr; gap: 20px; }
+  .ot-container {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
 }
 </style>

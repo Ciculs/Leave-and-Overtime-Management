@@ -12,8 +12,8 @@ import OTEdit from "../views/OTEdit.vue"
 
 import HolidayList from "../views/HolidayList.vue"
 import Reports from "../views/Reports.vue"
-import LeaveTable from "@/components/LeaveTable.vue"
-
+import LeaveTable from "@/views/LeaveTable.vue"
+import TeamCalendar from "../views/TeamCalendar.vue"
 const routes = [
   {
     path: "/login",
@@ -70,7 +70,18 @@ const routes = [
         path: "my-leaves", 
         component: LeaveTable, 
         meta: { role: "Employee" } 
-      }
+      },
+      {
+        path: "team-calendar",
+        component: TeamCalendar,
+        meta: { role: "Manager" }
+      },
+      {
+  path: '/team-approvals',
+  name: 'TeamApprovals',
+  component: () => import('../views/ManagerApproval.vue')
+}
+      
     ]
   }
 ]
@@ -81,21 +92,19 @@ const router = createRouter({
 })
 
 /* ✅ FIXED ROUTER GUARD */
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const token = localStorage.getItem("token")
   const role = localStorage.getItem("role")
 
-  if (to.matched.some(record => record.meta.requiresAuth) && !token) {
-    return next("/login")
+  if (to.meta.requiresAuth && !token) {
+    return "/login"
   }
 
-  const requiredRole = to.matched.find(r => r.meta.role)?.meta.role
-
-  if (requiredRole && requiredRole !== role) {
-    return next("/login")
+  if (to.meta.role && to.meta.role !== role) {
+    return "/login"
   }
 
-  next()
+  return true
 })
 
 export default router

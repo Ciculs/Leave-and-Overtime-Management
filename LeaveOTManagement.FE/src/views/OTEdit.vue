@@ -205,30 +205,33 @@ const update = async () => {
 
     const payload = {
 
-  reason: form.reason,
+      reason: form.reason,
 
-  details: [
-    {
-      workDate: form.date,
-      fromTime: form.fromTime + ":00",
-      toTime: form.toTime + ":00"
+      details: [
+        {
+          workDate: form.date,
+          fromTime: form.fromTime + ":00",
+          toTime: form.toTime + ":00"
+        }
+      ]
+
     }
-  ]
-
-}
 
     await api.put(`/OT/${route.params.id}`, payload)
 
-    alert("OT Updated Successfully")
+    window.$toast("OT updated successfully", "success")
 
-    router.push("/my-ot")
+    setTimeout(() => {
+      router.push("/my-ot")
+    }, 800)
 
   }
 
   catch(err){
 
     console.error(err)
-    alert("Update failed")
+
+    window.$toast("Update failed", "error")
 
   }
 

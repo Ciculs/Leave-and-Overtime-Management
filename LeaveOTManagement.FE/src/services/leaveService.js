@@ -15,3 +15,7 @@ export const createLeaveRequest = (payload) => {
 export const getLeaveList = (userId) => {
   return api.get(`/leave/list/${userId}`);
 };
+
+export const getTeamCalendar = () => {
+  return api.get("/leave/team-calendar")
+}

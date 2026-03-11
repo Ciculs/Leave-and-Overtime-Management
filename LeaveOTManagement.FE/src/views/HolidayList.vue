@@ -1,12 +1,14 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { getHolidays, importHoliday } from "../services/holidayService";
-import HolidayCalendar from "../components/HolidayCalendar.vue";
+import HolidayCalendar from "./HolidayCalendar.vue";
 
 const holidays = ref([]);
 const selectedFile = ref(null);
 const loading = ref(false);
 const viewMode = ref("list"); // list | calendar
+
+const selectedYear = ref(new Date().getFullYear());
 
 const loadHolidays = async () => {
   try {
@@ -19,7 +21,7 @@ const loadHolidays = async () => {
 
 const handleImport = async () => {
   if (!selectedFile.value) {
-    alert("Please select a file");
+    window.$toast("Please select a file", "warning");
     return;
   }
 
@@ -27,22 +29,38 @@ const handleImport = async () => {
     loading.value = true;
     await importHoliday(selectedFile.value);
     await loadHolidays();
-    alert("Import successful");
+
+    window.$toast("Holiday import successful", "success");
   } catch (error) {
     console.error(error);
-    alert("Import failed");
+    window.$toast("Holiday import failed", "error");
   } finally {
     loading.value = false;
   }
 };
 
+/* YEAR LIST */
+const years = computed(() => {
+  const uniqueYears = new Set(
+    holidays.value.map(h => new Date(h.holidayDate).getFullYear())
+  );
+  return Array.from(uniqueYears).sort();
+});
+
+/* FILTERED HOLIDAYS */
+const filteredHolidays = computed(() => {
+  return holidays.value.filter(
+    h => new Date(h.holidayDate).getFullYear() === selectedYear.value
+  );
+});
+
 onMounted(async () => {
   try {
-    await loadHolidays()
+    await loadHolidays();
   } catch (error) {
-    console.error("Holiday load error:", error)
+    console.error("Holiday load error:", error);
   }
-})
+});
 </script>
 
 <template>
@@ -60,19 +78,23 @@ onMounted(async () => {
 
         <div class="header-actions">
 
+          <!-- YEAR FILTER -->
+          <div class="year-filter">
+            <label>Year:</label>
+            <select v-model="selectedYear">
+              <option v-for="y in years" :key="y" :value="y">
+                {{ y }}
+              </option>
+            </select>
+          </div>
+
           <!-- VIEW TOGGLE -->
           <div class="view-toggle">
-            <button
-              :class="{ active: viewMode === 'list' }"
-              @click="viewMode = 'list'"
-            >
+            <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
               List
             </button>
 
-            <button
-              :class="{ active: viewMode === 'calendar' }"
-              @click="viewMode = 'calendar'"
-            >
+            <button :class="{ active: viewMode === 'calendar' }" @click="viewMode = 'calendar'">
               Calendar
             </button>
           </div>
@@ -84,11 +106,7 @@ onMounted(async () => {
               Choose File
             </label>
 
-            <button
-              class="btn-import"
-              :disabled="loading"
-              @click="handleImport"
-            >
+            <button class="btn-import" :disabled="loading" @click="handleImport">
               {{ loading ? "Importing..." : "Import" }}
             </button>
           </div>
@@ -102,14 +120,11 @@ onMounted(async () => {
         <!-- CALENDAR VIEW -->
         <HolidayCalendar
           v-if="viewMode === 'calendar'"
-          :holidays="holidays"
+          :holidays="filteredHolidays"
         />
 
         <!-- LIST VIEW -->
-        <table
-          v-else-if="holidays.length > 0"
-          class="holiday-table"
-        >
+        <table v-else-if="filteredHolidays.length > 0" class="holiday-table">
           <thead>
             <tr>
               <th>#</th>
@@ -118,7 +133,7 @@ onMounted(async () => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(h, index) in holidays" :key="h.id">
+            <tr v-for="(h, index) in filteredHolidays" :key="h.id">
               <td>{{ index + 1 }}</td>
               <td>{{ h.holidayDate }}</td>
               <td>{{ h.name }}</td>
@@ -173,6 +188,19 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 25px;
+}
+
+/* YEAR FILTER */
+.year-filter{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.year-filter select{
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid #e2e8f0;
 }
 
 /* VIEW TOGGLE */
@@ -270,7 +298,7 @@ onMounted(async () => {
   padding: 30px 0;
 }
 
-/* RESPONSIVE FIX */
+/* RESPONSIVE */
 @media (max-width: 768px) {
 
   .card-header {
@@ -286,15 +314,5 @@ onMounted(async () => {
     gap: 10px;
   }
 
-  .import-section {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .file-label,
-  .btn-import {
-    width: 100%;
-    text-align: center;
-  }
 }
 </style>
