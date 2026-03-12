@@ -80,6 +80,12 @@ const routes = [
   path: '/team-approvals',
   name: 'TeamApprovals',
   component: () => import('../views/ManagerApproval.vue')
+},
+{
+  path: '/hr-approvals',
+  name: 'HRApprovals',
+  component: () => import('../views/HRApproval.vue'),
+  meta: { role: 'HR' }
 }
       
     ]
