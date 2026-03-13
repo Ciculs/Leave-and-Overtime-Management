@@ -213,5 +213,185 @@ namespace LeaveOTManagement.Services
                 }).ToList()
             };
         }
+
+        public async Task<List<OtResponseDto>> GetPendingApprovalsAsync(int approverId)
+        {
+            var approvals = await _context.Approvals
+                .Where(a =>
+                    a.ApproverId == approverId &&
+                    a.RequestType == "OT")
+                .Select(a => new
+                {
+                    a.RequestId,
+                    a.Status,
+                    a.ApprovalLevel
+                })
+                .ToListAsync();
+
+            if (!approvals.Any())
+                return new List<OtResponseDto>();
+
+            var requestIds = approvals
+                .Select(a => a.RequestId)
+                .Distinct()
+                .ToList();
+
+            var requests = await _context.Otrequests
+                .Include(x => x.Otdetails)
+                .Where(x => requestIds.Contains(x.Id))
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            var result = requests
+                .Select(x => new OtResponseDto
+                {
+                    Id = x.Id,
+                    Reason = x.Reason ?? "",
+                    Status = x.Status ?? "",
+                    CreatedAt = x.CreatedAt ?? DateTime.MinValue,
+
+                    Details = x.Otdetails.Select(d => new OtDetailDto
+                    {
+                        WorkDate = d.WorkDate,
+                        FromTime = d.FromTime,
+                        ToTime = d.ToTime,
+                        Hours = d.Hours
+                    }).ToList()
+                })
+                .ToList();
+
+            return result;
+        }
+
+        public async Task ManagerApproveOtAsync(long requestId, int approverId)
+        {
+            var approval = await _context.Approvals.FirstOrDefaultAsync(a =>
+                a.RequestId == requestId &&
+                a.RequestType == "OT" &&
+                a.ApproverId == approverId &&
+                a.Status == "Pending");
+
+            if (approval == null)
+                throw new Exception("Approval not found");
+
+            var ot = await _context.Otrequests.FindAsync(requestId);
+
+            if (ot == null)
+                throw new Exception("OT request not found");
+
+            if (ot.CurrentApprovalLevel != 1)
+                throw new Exception("Manager approval already processed");
+
+            // Manager approve
+            approval.Status = "Approved";
+            approval.ActionDate = DateTime.Now;
+
+            // Move workflow to HR
+            ot.CurrentApprovalLevel = 2;
+            ot.Status = "ManagerApproved";
+
+            // 🔥 CREATE HR APPROVAL RECORD
+            var hrUsers = await _context.Users
+                .Where(u => u.RoleId == 3)
+                 .ToListAsync();
+
+            foreach (var hr in hrUsers)
+            {
+                _context.Approvals.Add(new Approval
+                {
+                    RequestId = requestId,
+                    RequestType = "OT",
+                    ApproverId = hr.Id,
+                    ApprovalLevel = 2,
+                    Status = "Pending"
+                });
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task HrApproveOtAsync(long requestId, int approverId)
+        {
+            var approval = await _context.Approvals.FirstOrDefaultAsync(a =>
+                a.RequestId == requestId &&
+                a.RequestType == "OT" &&
+                a.ApproverId == approverId &&
+                a.Status == "Pending");
+
+            if (approval == null)
+                throw new Exception("Approval not found");
+
+            var ot = await _context.Otrequests
+                .Include(x => x.Otdetails)
+                .FirstOrDefaultAsync(x => x.Id == requestId);
+
+            if (ot == null)
+                throw new Exception("OT request not found");
+
+            if (ot.CurrentApprovalLevel != 2)
+                throw new Exception("Manager must approve first");
+
+            approval.Status = "Approved";
+            approval.ActionDate = DateTime.Now;
+
+            // FINAL APPROVAL
+            ot.CurrentApprovalLevel = 3;
+            ot.Status = "Approved";
+
+            await _context.SaveChangesAsync();
+
+            await AddToPayroll(ot);
+        }
+
+        public async Task RejectOtAsync(long requestId, int approverId, string reason)
+        {
+            var approval = await _context.Approvals.FirstOrDefaultAsync(a =>
+                a.RequestId == requestId &&
+                a.RequestType == "OT" &&
+                a.ApproverId == approverId &&
+                a.Status == "Pending");
+
+            if (approval == null)
+                throw new Exception("Approval not found");
+
+            var ot = await _context.Otrequests.FindAsync(requestId);
+
+            if (ot == null)
+                throw new Exception("OT request not found");
+
+            // Reject record
+            approval.Status = "Rejected";
+            approval.Comment = reason;
+            approval.ActionDate = DateTime.Now;
+
+            // Stop workflow
+            ot.Status = "Rejected";         
+            ot.CurrentApprovalLevel = -1;
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task AddToPayroll(Otrequest ot)
+        {
+            if (ot.Otdetails == null || !ot.Otdetails.Any())
+                return;
+
+            foreach (var d in ot.Otdetails)
+            {
+                var payroll = new PayrollLog
+                {
+                    UserId = ot.UserId,
+                    OTRequestId = ot.Id,
+                    WorkDate = d.WorkDate.ToDateTime(TimeOnly.MinValue),
+                    Hours = d.Hours,
+                    RateMultiplier = 1.5m,
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.PayrollLogs.Add(payroll);
+            }
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

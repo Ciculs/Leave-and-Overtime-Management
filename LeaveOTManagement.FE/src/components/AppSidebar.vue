@@ -33,6 +33,10 @@
           ✅ <span v-if="!collapsed">Team Approvals</span>
         </router-link>
 
+        <router-link to="/ot-manager-approval" class="nav-item">
+          ⏱ <span v-if="!collapsed">OT Approvals</span>
+        </router-link>
+
         <router-link to="/team-calendar" class="nav-item">
           📅 <span v-if="!collapsed">Team Calendar</span>
         </router-link>
@@ -45,6 +49,10 @@
 
         <router-link to="/holidays" class="nav-item">
           📅 <span v-if="!collapsed">Holiday Calendar</span>
+        </router-link>
+
+        <router-link to="/ot-hr-approval" class="nav-item">
+          ⏱ <span v-if="!collapsed">OT HR Approval</span>
         </router-link>
 
         <router-link to="/reports" class="nav-item">
