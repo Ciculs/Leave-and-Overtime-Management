@@ -12,7 +12,7 @@ const viewMode = ref("calendar")
 const currentDate = ref(new Date())
 
 const currentMonth = computed(() => currentDate.value.getMonth())
-const currentYear = computed(() => currentDate.value.getFullYear())
+const currentYear = computed(() => selectedYear.value)
 
 const today = new Date().toISOString().split("T")[0]
 
@@ -22,6 +22,7 @@ const selectedDate = ref(null)
 const selectedLeaves = ref([])
 const showPopup = ref(false)
 
+const selectedYear = ref(new Date().getFullYear())
 /* LOAD DATA */
 
 const loadLeaves = async (year, month) => {
@@ -54,6 +55,17 @@ onMounted(() => {
 watch([currentYear, currentMonth], () => {
 
   loadLeaves(currentYear.value, currentMonth.value + 1)
+
+})
+
+watch(selectedYear, () => {
+
+  leaves.value = []
+  loadedMonths.value = []
+
+  currentDate.value = new Date(selectedYear.value, currentMonth.value, 1)
+
+  loadLeaves(selectedYear.value, currentMonth.value + 1)
 
 })
 
@@ -130,7 +142,7 @@ const leaveColor = (type) => {
 const isToday = (day) => {
 
   const key =
-    `${currentYear.value}-${String(currentMonth.value + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
   return key === today
 
@@ -150,7 +162,7 @@ const isWeekend = (day) => {
 
 const getKey = (day) => {
 
-  return `${currentYear.value}-${String(currentMonth.value + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  return `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
 }
 
@@ -170,294 +182,371 @@ const openDay = (day) => {
 
 const closePopup = () => showPopup.value = false
 
+const monthLabel = computed(() => {
+  const date = currentDate.value
+
+  if (!date || isNaN(date)) return ""
+
+  return date.toLocaleString("default", {
+    month: "long"
+  })
+})
 </script>
 
 <template>
 
-<div class="page-card">
+  <div class="page-card">
 
-<!-- HEADER -->
+    <!-- HEADER -->
 
-<div class="page-header">
+    <div class="page-header">
 
-<div>
-<h2>Team Leave Calendar</h2>
-<p>View approved leave of your team</p>
-</div>
+      <div>
+        <h2>Team Leave Calendar</h2>
+        <p>View approved leave of your team</p>
+      </div>
 
-<div class="view-switch">
+      <div class="header-actions">
 
-<button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
-List
-</button>
+        <div class="year-filter">
+          <label>Year:</label>
 
-<button :class="{ active: viewMode === 'calendar' }" @click="viewMode = 'calendar'">
-Calendar
-</button>
+          <select v-model="selectedYear">
 
-</div>
+            <option v-for="y in [2024, 2025, 2026, 2027, 2028]" :key="y" :value="y">
+              {{ y }}
+            </option>
 
-</div>
+          </select>
 
-<!-- CALENDAR -->
+        </div>
 
-<div v-if="viewMode === 'calendar'" class="calendar">
+        <div class="view-toggle">
 
-<div class="calendar-header">
+          <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
+            List
+          </button>
 
-<button @click="changeMonth(-1)">◀</button>
+          <button :class="{ active: viewMode === 'calendar' }" @click="viewMode = 'calendar'">
+            Calendar
+          </button>
 
-<h3>
-{{ new Date(currentYear, currentMonth).toLocaleString('default',{month:'long'}) }}
-{{ currentYear }}
-</h3>
+        </div>
 
-<button @click="changeMonth(1)">▶</button>
+      </div>
 
-</div>
+    </div>
 
-<div class="calendar-grid">
+    <!-- CALENDAR -->
 
-<div class="day-name" v-for="d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']" :key="d">
-{{ d }}
-</div>
+    <div v-if="viewMode === 'calendar'" class="calendar">
 
-<div v-for="n in firstDayOfMonth" :key="'empty-'+n" class="empty-cell"></div>
+      <div class="calendar-header">
 
-<div
-v-for="day in daysInMonth"
-:key="day"
-class="day-cell"
-@click="openDay(day)"
-:class="{
-today:isToday(day),
-weekend:isWeekend(day)
-}"
->
+        <button @click="changeMonth(-1)">◀</button>
 
-<div class="date-number">{{ day }}</div>
+        <h3>
+          {{ monthLabel }} {{ currentYear }}
+        </h3>
 
-<div
-v-for="(leave,i) in (leaveMap[getKey(day)] || []).slice(0,3)"
-:key="leave.name+i"
-class="leave-event"
-:style="{background:leaveColor(leave.type)}"
-:title="leave.name + ' - ' + leave.type"
->
-{{ leave.name }}
-</div>
+        <button @click="changeMonth(1)">▶</button>
 
-<div
-v-if="(leaveMap[getKey(day)] || []).length > 3"
-class="more-leave"
->
-+{{ leaveMap[getKey(day)].length - 3 }} more
-</div>
+      </div>
 
-</div>
+      <!-- ANIMATED GRID -->
 
-</div>
+      <Transition name="calendar-slide" mode="out-in">
+        <div class="calendar-grid" :key="currentMonth">
 
-</div>
+          <div class="day-name" v-for="d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" :key="d">
+            {{ d }}
+          </div>
 
-<!-- LIST VIEW -->
+          <div v-for="n in firstDayOfMonth" :key="'empty-' + n" class="empty-cell"></div>
 
-<div v-if="viewMode === 'list'" class="list-view">
+          <div v-for="day in daysInMonth" :key="day" class="day-cell" @click="openDay(day)" :class="{
+            today: isToday(day),
+            weekend: isWeekend(day),
+            hasLeave: leaveMap[getKey(day)]
+          }">
 
-<table>
+            <div class="date-number">{{ day }}</div>
 
-<thead>
-<tr>
-<th>Employee</th>
-<th>Leave Type</th>
-<th>From</th>
-<th>To</th>
-</tr>
-</thead>
+            <div v-for="(leave, i) in (leaveMap[getKey(day)] || []).slice(0, 3)" :key="leave.name + i"
+              class="leave-event" :style="{ background: leaveColor(leave.type) }"
+              :title="leave.name + ' - ' + leave.type">
+              {{ leave.name }}
+            </div>
 
-<tbody>
+            <div v-if="(leaveMap[getKey(day)] || []).length > 3" class="more-leave">
+              +{{ leaveMap[getKey(day)].length - 3 }} more
+            </div>
 
-<tr v-for="leave in leaves" :key="leave.employeeName">
+          </div>
 
-<td>{{ leave.employeeName }}</td>
-<td>{{ leave.leaveType }}</td>
-<td>{{ leave.startDate.slice(0,10) }}</td>
-<td>{{ leave.endDate.slice(0,10) }}</td>
+        </div>
+      </Transition>
 
-</tr>
+    </div>
 
-</tbody>
+    <!-- LIST VIEW -->
 
-</table>
+    <div v-if="viewMode === 'list'" class="list-view">
 
-</div>
+      <table>
 
-</div>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Leave Type</th>
+            <th>From</th>
+            <th>To</th>
+          </tr>
+        </thead>
 
-<!-- POPUP -->
+        <tbody>
 
-<div v-if="showPopup" class="popup-overlay">
+          <tr v-for="leave in leaves" :key="leave.employeeName">
 
-<div class="popup">
+            <td>{{ leave.employeeName }}</td>
+            <td>{{ leave.leaveType }}</td>
+            <td>{{ leave.startDate.slice(0, 10) }}</td>
+            <td>{{ leave.endDate.slice(0, 10) }}</td>
 
-<h3>Leave on {{ selectedDate }}</h3>
+          </tr>
 
-<div v-if="selectedLeaves.length===0">
-No leave on this day
-</div>
+        </tbody>
 
-<ul v-else>
+      </table>
 
-<li v-for="l in selectedLeaves" :key="l.name">
-{{ l.name }} - {{ l.type }}
-</li>
+    </div>
 
-</ul>
+  </div>
 
-<button @click="closePopup">Close</button>
+  <!-- POPUP -->
 
-</div>
+  <div v-if="showPopup" class="popup-overlay">
 
-</div>
+    <div class="popup">
+
+      <h3>Leave on {{ selectedDate }}</h3>
+
+      <div v-if="selectedLeaves.length === 0">
+        No leave on this day
+      </div>
+
+      <ul v-else>
+
+        <li v-for="l in selectedLeaves" :key="l.name">
+          {{ l.name }} - {{ l.type }}
+        </li>
+
+      </ul>
+
+      <button @click="closePopup">Close</button>
+
+    </div>
+
+  </div>
 
 </template>
 
 <style scoped>
-
-.page-card{
-background:white;
-padding:24px;
-border-radius:16px;
-box-shadow:0 4px 10px rgba(0,0,0,0.05);
+.page-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
-.page-header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:20px;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
-.page-header p{
-margin:4px 0 0;
-color:#707eae;
-font-size:14px;
+.page-header p {
+  margin: 4px 0 0;
+  color: #707eae;
+  font-size: 14px;
 }
 
-.view-switch{
-display:flex;
-gap:10px;
+.view-toggle {
+  display: flex;
+  background: #f4f7fe;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.view-switch button{
-border:none;
-padding:6px 14px;
-border-radius:8px;
-background:#e5e7eb;
-cursor:pointer;
+.view-toggle button {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #707eae;
+  transition: 0.3s;
 }
 
-.view-switch button.active{
-background:#4318ff;
-color:white;
+.view-toggle button.active {
+  background: linear-gradient(135deg, #4318ff 0%, #3182ce 100%);
+  color: white;
 }
 
-.calendar-header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:15px;
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
 }
 
-.calendar-grid{
-display:grid;
-grid-template-columns:repeat(7,1fr);
-gap:8px;
+.calendar-header button {
+  background: #eef2ff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
-.day-name{
-text-align:center;
-font-weight:bold;
-color:#707eae;
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
 }
 
-.day-cell{
-background:#f9fbff;
-border-radius:12px;
-padding:8px;
-min-height:90px;
-cursor:pointer;
-transition:0.2s;
+.day-name {
+  text-align: center;
+  font-weight: bold;
+  color: #707eae;
 }
 
-.day-cell:hover{
-background:#edf2ff;
+.day-cell {
+  background: #f9fbff;
+  border-radius: 12px;
+  padding: 8px;
+  min-height: 90px;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
-.today{
-border:2px solid #4318ff;
-background:#eef2ff;
+.day-cell:hover {
+  transform: translateY(-2px);
+  background: #edf2ff;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
 }
 
-.weekend{
-background:#f3f6ff;
+.today {
+  border: 2px solid #4318ff;
+  background: #eef2ff;
 }
 
-.date-number{
-font-weight:bold;
-margin-bottom:4px;
+.weekend {
+  background: #d8e2ff;
 }
 
-.leave-event{
-font-size:11px;
-margin-top:4px;
-padding:3px 6px;
-border-radius:6px;
-color:white;
-display:inline-block;
+.date-number {
+  font-weight: bold;
+  margin-bottom: 4px;
 }
 
-.more-leave{
-font-size:11px;
-color:#6b7280;
-margin-top:4px;
+.leave-event {
+  font-size: 10px;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: white;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-.list-view table{
-width:100%;
-border-collapse:collapse;
+.more-leave {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.list-view table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
 .list-view th,
-.list-view td{
-padding:10px;
-border-bottom:1px solid #e5e7eb;
-text-align:left;
+.list-view td {
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
 }
 
-.popup-overlay{
-position:fixed;
-inset:0;
-background:rgba(0,0,0,0.4);
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  min-width: 300px;
+}
+
+.popup button {
+  background: #4318ff;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.calendar-slide-enter-active,
+.calendar-slide-leave-active {
+  transition: all .25s ease;
+}
+
+.calendar-slide-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.calendar-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.hasLeave {
+  border-left: 4px solid #4318ff;
+}
+
+.more-leave {
+  font-size: 10px;
+  margin-top: 3px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.header-actions{
 display:flex;
-justify-content:center;
 align-items:center;
+gap:20px;
 }
 
-.popup{
-background:white;
-padding:25px;
-border-radius:12px;
-min-width:300px;
+.year-filter{
+display:flex;
+align-items:center;
+gap:8px;
 }
 
-.popup button{
-background:#4318ff;
-color:white;
-border:none;
-padding:8px 14px;
-border-radius:6px;
-cursor:pointer;
+.year-filter select{
+padding:6px 10px;
+border-radius:8px;
+border:1px solid #e2e8f0;
 }
-
 </style>
