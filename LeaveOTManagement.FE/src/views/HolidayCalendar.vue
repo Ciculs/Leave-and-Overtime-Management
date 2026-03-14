@@ -1,37 +1,23 @@
 <script setup>
-import { ref, computed, watch, onMounted } from "vue"
-import { getHolidayByYear } from "@/services/holidayService"
+import { ref, computed } from "vue"
 
+/* RECEIVE HOLIDAYS FROM PARENT */
+const props = defineProps({
+  holidays: {
+    type: Array,
+    default: () => []
+  }
+})
+
+/* CURRENT DATE STATE */
 const currentDate = ref(new Date())
-
-const holidays = ref([])
-const loadedYears = ref([])
 
 const currentMonth = computed(() => currentDate.value.getMonth())
 const currentYear = computed(() => currentDate.value.getFullYear())
 
 const today = new Date()
 
-const loadHoliday = async (year) => {
-  if (loadedYears.value.includes(year)) return
-
-  try {
-    const res = await getHolidayByYear(year)
-
-    holidays.value = [...holidays.value, ...res.data]
-    loadedYears.value.push(year)
-  } catch (err) {
-    console.error("Holiday load error", err)
-  }
-}
-
-onMounted(() => {
-  loadHoliday(currentYear.value)
-})
-
-watch(currentYear, (year) => {
-  loadHoliday(year)
-})
+/* CALENDAR DATA */
 
 const daysInMonth = computed(() => {
   return new Date(currentYear.value, currentMonth.value + 1, 0).getDate()
@@ -45,15 +31,21 @@ const firstDayOfMonth = computed(() => {
 
 })
 
+/* BUILD HOLIDAY MAP */
+
 const holidayMap = computed(() => {
+
   const map = {}
 
-  holidays.value.forEach((h) => {
+  props.holidays.forEach((h) => {
     map[h.holidayDate] = h.name
   })
 
   return map
+
 })
+
+/* HELPERS */
 
 const isWeekend = (day) => {
   const d = new Date(currentYear.value, currentMonth.value, day).getDay()
@@ -69,84 +61,91 @@ const isToday = (day) => {
 }
 
 const getDateKey = (day) => {
-  return `${currentYear.value}-${String(currentMonth.value + 1).padStart(
-    2,
-    "0"
-  )}-${String(day).padStart(2, "0")}`
+  return `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 }
 
+/* MONTH NAVIGATION */
+
 const changeMonth = (offset) => {
+
   currentDate.value = new Date(
     currentYear.value,
     currentMonth.value + offset,
     1
   )
+
 }
+
+const monthLabel = computed(() => {
+  const date = currentDate.value
+
+  if (!date || isNaN(date)) return ""
+
+  return date.toLocaleString("default", {
+    month: "long"
+  })
+})
 </script>
 
 <template>
   <div class="calendar">
 
+    <!-- HEADER -->
+
     <div class="calendar-header">
       <button @click="changeMonth(-1)">◀</button>
 
       <h3>
-        {{
-          new Date(currentYear, currentMonth).toLocaleString("default", {
-            month: "long"
-          })
-        }}
-        {{ currentYear }}
+        {{ monthLabel }} {{ currentYear }}
       </h3>
 
       <button @click="changeMonth(1)">▶</button>
     </div>
 
-    <div class="calendar-grid">
+    <!-- CALENDAR -->
 
-      <div
-        class="day-name"
-        v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']"
-        :key="d"
-      >
-        {{ d }}
-      </div>
+    <Transition name="calendar-slide" mode="out-in">
+      <div class="calendar-grid" :key="`${currentYear}-${currentMonth}`">
 
-      <div
-        v-for="n in firstDayOfMonth"
-        :key="'empty-' + n"
-        class="empty-cell"
-      ></div>
+        <!-- WEEKDAY HEADER -->
 
-      <div
-        v-for="day in daysInMonth"
-        :key="day"
-        class="day-cell"
-        :class="{
+        <div class="day-name" v-for="d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" :key="d">
+          {{ d }}
+        </div>
+
+        <!-- EMPTY CELLS -->
+
+        <div v-for="n in firstDayOfMonth" :key="'empty-' + n" class="empty-cell"></div>
+
+        <!-- DAYS -->
+
+        <div v-for="day in daysInMonth" :key="day" class="day-cell" :class="{
           holiday: holidayMap[getDateKey(day)],
           weekend: isWeekend(day),
           today: isToday(day)
-        }"
-      >
+        }">
 
-        <div class="date-number">{{ day }}</div>
+          <!-- DAY NUMBER -->
 
-        <div
-          v-if="holidayMap[getDateKey(day)]"
-          class="holiday-name"
-        >
-          {{ holidayMap[getDateKey(day)] }}
+          <div class="date-number">
+            {{ day }}
+          </div>
+
+          <!-- HOLIDAY -->
+
+          <div v-if="holidayMap[getDateKey(day)]" class="holiday-name">
+            🎉 {{ holidayMap[getDateKey(day)] }}
+          </div>
+
         </div>
 
       </div>
-
-    </div>
+    </Transition>
 
   </div>
 </template>
 
 <style scoped>
-
 .calendar {
   margin-top: 20px;
 }
@@ -192,7 +191,9 @@ const changeMonth = (offset) => {
 }
 
 .day-cell:hover {
+  transform: translateY(-2px);
   background: #edf2ff;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
 }
 
 .date-number {
@@ -205,13 +206,17 @@ const changeMonth = (offset) => {
 }
 
 .holiday-name {
-  font-size: 11px;
-  margin-top: 5px;
-  color: #d00000;
+  font-size: 10px;
+  margin-top: 4px;
+  background: #ffe0e0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  color: #b91c1c;
 }
 
 .weekend {
-  background: #dfe6fa;
+  background: #d8e2ff;
 }
 
 .today {
@@ -222,4 +227,18 @@ const changeMonth = (offset) => {
   min-height: 90px;
 }
 
+.calendar-slide-enter-active,
+.calendar-slide-leave-active {
+  transition: all 0.25s ease;
+}
+
+.calendar-slide-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.calendar-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
 </style>

@@ -1,7 +1,6 @@
 <template>
   <aside :class="['sidebar', { collapsed }]">
 
-    <!-- TOP BAR (Mobile Toggle) -->
     <div class="mobile-header">
       <div class="brand">
         <div class="logo-box">D</div>
@@ -19,7 +18,6 @@
         📊 <span v-if="!collapsed">Dashboard</span>
       </router-link>
 
-      <!-- EMPLOYEE -->
       <template v-if="role === 'Employee'">
         <router-link to="/my-leaves" class="nav-item">
           📄 <span v-if="!collapsed">My Leave Requests</span>
@@ -30,10 +28,8 @@
         </router-link>
       </template>
 
-      <!-- MANAGER -->
-      <!-- MANAGER -->
       <template v-if="role === 'Manager'">
-        <router-link to="/manager" class="nav-item">
+        <router-link to="/team-approvals" class="nav-item">
           ✅ <span v-if="!collapsed">Team Approvals</span>
         </router-link>
 
@@ -46,8 +42,11 @@
         </router-link>
       </template>
 
-      <!-- HR -->
       <template v-if="role === 'HR'">
+        <router-link to="/hr-approvals" class="nav-item">
+          ✅ <span v-if="!collapsed">HR Approvals</span>
+        </router-link>
+
         <router-link to="/holidays" class="nav-item">
         📅 <span v-if="!collapsed">Holiday Calendar</span>
         </router-link>
