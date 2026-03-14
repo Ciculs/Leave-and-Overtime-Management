@@ -49,16 +49,23 @@
       <!-- HR -->
       <template v-if="role === 'HR'">
         <router-link to="/holidays" class="nav-item">
-          📅 <span v-if="!collapsed">Holiday Calendar</span>
+        📅 <span v-if="!collapsed">Holiday Calendar</span>
         </router-link>
 
         <router-link to="/ot-hr-approval" class="nav-item">
-          ⏱ <span v-if="!collapsed">OT HR Approval</span>
+        ⏱ <span v-if="!collapsed">OT HR Approval</span>
         </router-link>
 
+      <!-- REPORT CHARTS (file Reports.vue hiện tại) -->
         <router-link to="/reports" class="nav-item">
-          📈 <span v-if="!collapsed">Reporting</span>
+    📈  <span v-if="!collapsed">Analytics</span>
         </router-link>
+
+      <!-- NEW REPORT DASHBOARD (US37 + US38) -->
+         <router-link to="/report-dashboard" class="nav-item">
+        📑 <span v-if="!collapsed">Report Dashboard</span>
+          </router-link>
+
       </template>
 
     </nav>

@@ -48,4 +48,56 @@ public class ReportController : ControllerBase
 
         return Ok(data);
     }
+
+    [HttpGet("filter")]
+    public IActionResult FilterReport(int month, int year)
+    {
+        var data = _context.Otdetails
+            .Where(d =>
+                d.WorkDate.Month == month &&
+                d.WorkDate.Year == year)
+            .Select(d => new
+            {
+                RequestId = d.Otrequest.Id,
+                UserId = d.Otrequest.UserId,
+                Date = d.WorkDate,
+                Hours = d.Hours,
+                Status = d.Otrequest.Status
+            })
+            .ToList();
+
+        return Ok(data);
+    }
+
+    [HttpGet("download")]
+    public IActionResult DownloadReport(int month, int year)
+    {
+        var data = _context.Otdetails
+            .Where(d =>
+                d.WorkDate.Month == month &&
+                d.WorkDate.Year == year)
+            .Select(d => new
+            {
+                UserId = d.Otrequest.UserId,
+                Date = d.WorkDate,
+                Hours = d.Hours,
+                Status = d.Otrequest.Status
+            })
+            .ToList();
+
+        var csv = new System.Text.StringBuilder();
+
+        csv.AppendLine("UserId,Date,Hours,Status");
+
+        foreach (var r in data)
+        {
+            csv.AppendLine($"{r.UserId},{r.Date},{r.Hours},{r.Status}");
+        }
+
+        return File(
+            System.Text.Encoding.UTF8.GetBytes(csv.ToString()),
+            "text/csv",
+            "OT_Report.csv"
+        );
+    }
 }

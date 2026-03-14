@@ -86,6 +86,11 @@ const routes = [{
                 path: "team-calendar",
                 component: TeamCalendar,
                 meta: { role: "Manager" }
+            },
+            {
+                path: "/report-dashboard",
+                component: () =>
+                    import ("../views/ReportDashboard.vue")
             }
         ]
     }
