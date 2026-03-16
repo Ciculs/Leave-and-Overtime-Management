@@ -1,4 +1,4 @@
-IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'LeaveOTDB')
+﻿IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'LeaveOTDB')
     CREATE DATABASE LeaveOTDB;
 GO
 
@@ -301,3 +301,71 @@ VALUES
 ('a','123456',3),
 ('b','123456',4),
 ('c','123456',5);
+
+-- 1. CREATE OT REQUEST
+INSERT INTO Otrequests
+(UserId, Reason, Status, CurrentApprovalLevel, CreatedAt)
+VALUES
+(1, 'Overtime for project deadline', 'Pending', 1, GETDATE());
+
+-- 2. GET LAST INSERTED OT ID
+DECLARE @OtId BIGINT
+SET @OtId = SCOPE_IDENTITY()
+
+-- 3. ADD OT DETAIL
+INSERT INTO Otdetails
+(OtrequestId, WorkDate, FromTime, ToTime, Hours)
+VALUES
+(@OtId, '2026-03-12', '18:00', '20:00', 2)
+
+-- 4. ADD MANAGER APPROVAL
+INSERT INTO Approvals
+(RequestId, RequestType, ApproverId, ApprovalLevel, Status)
+VALUES
+(@OtId, 'OT', 2, 1, 'Pending')
+
+-- 5. ADD HR APPROVAL
+INSERT INTO Approvals
+(RequestId, RequestType, ApproverId, ApprovalLevel, Status)
+VALUES
+(@OtId, 'OT', 3, 2, 'Pending')
+
+-- =========================
+-- CHECK DATA
+-- =========================
+SELECT * FROM Otrequests
+SELECT * FROM Otdetails
+SELECT * FROM Approvals
+
+INSERT INTO ApprovalWorkflows (RequestType, Level, RoleId, IsActive)
+VALUES ('OT', 2, 3, 1)
+
+INSERT INTO Approvals (RequestId, RequestType, ApprovalLevel, ApproverId, Status)
+SELECT 
+    o.Id,
+    'OT',
+    2,
+    u.Id,
+    'Pending'
+FROM OTRequests o
+JOIN Users u ON u.RoleId = 3
+WHERE o.CurrentApprovalLevel = 2
+
+SELECT Id, Status, Reason
+FROM OTRequests
+WHERE Reason LIKE N'%bệnh viện%'
+
+UPDATE OTRequests
+SET Status = 'WaitingHR'
+WHERE Reason = N'đi bệnh viện'
+
+SELECT * FROM Users
+SELECT * FROM Roles 
+SELECT * FROM Approvals
+
+SELECT *
+FROM ApprovalWorkflows
+
+SELECT Id, RoleId
+FROM Users
+WHERE RoleId = (SELECT RoleId FROM Roles WHERE Name='HR')

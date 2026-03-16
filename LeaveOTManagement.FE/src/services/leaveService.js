@@ -16,6 +16,6 @@ export const getLeaveList = (userId) => {
   return api.get(`/leave/list/${userId}`);
 };
 
-export const getTeamCalendar = () => {
-  return api.get("/leave/team-calendar")
+export const getTeamCalendar = (year, month) => {
+  return api.get(`/leave/team-calendar?year=${year}&month=${month}`)
 }

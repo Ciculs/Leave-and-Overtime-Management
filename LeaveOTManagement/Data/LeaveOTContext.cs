@@ -32,7 +32,7 @@ public partial class LeaveOTContext : DbContext
     public virtual DbSet<Holiday> Holidays { get; set; }
 
     public virtual DbSet<LeaveBalance> LeaveBalances { get; set; }
-
+    public DbSet<PayrollLog> PayrollLogs { get; set; }
     public virtual DbSet<LeaveRequest> LeaveRequests { get; set; }
 
     public virtual DbSet<LeaveType> LeaveTypes { get; set; }

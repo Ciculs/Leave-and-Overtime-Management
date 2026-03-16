@@ -13,50 +13,100 @@
 
     <main v-if="!showRegister">
       <div class="filter-bar d-flex justify-content-between align-items-center mb-4">
-        <div class="custom-select-wrapper">
-          <i class="fas fa-filter icon"></i>
-          <select v-model="selectedStatus" class="form-select border-0 shadow-sm">
-            <option value="">All Requests</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-          </select>
-        </div>
-        <div class="text-secondary small">
-          Showing <strong>{{ filteredOT.length }}</strong> requests
-        </div>
-      </div>
+
+  <div class="d-flex gap-2">
+
+    <div class="custom-select-wrapper">
+      <i class="fas fa-filter icon"></i>
+      <select v-model="selectedStatus" class="form-select border-0 shadow-sm">
+        <option value="">All Requests</option>
+        <option value="Pending">Pending</option>
+        <option value="Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+      </select>
+    </div>
+
+    <!-- SORT -->
+    <div class="custom-select-wrapper">
+      <i class="fas fa-sort icon"></i>
+      <select v-model="sortOrder" class="form-select border-0 shadow-sm">
+        <option value="desc">Newest</option>
+        <option value="asc">Oldest</option>
+      </select>
+    </div>
+
+  </div>
+
+  <div class="text-secondary small">
+    Showing <strong>{{ filteredOT.length }}</strong> requests
+  </div>
+
+</div>
 
       <div class="ot-grid">
-        <transition-group name="list-complete">
-          <div v-for="ot in filteredOT" :key="ot.id" class="ot-card" @click="openDetail(ot)">
-            <div class="card-status-strip" :class="ot.status?.toLowerCase()"></div>
+  <transition-group name="list-complete">
+    <div v-for="ot in paginatedOT" :key="ot.id" class="ot-card" @click="openDetail(ot)">
+      <div class="card-status-strip" :class="ot.status?.toLowerCase()"></div>
 
-            <div class="ot-card-body">
-              <div class="d-flex justify-content-between align-items-start mb-3">
-                <span class="date-badge">
-                  <i class="far fa-calendar-alt me-2"></i>{{ formatDate(ot.details?.[0]?.workDate) }}
-                </span>
-                <span :class="['status-pill', ot.status?.toLowerCase()]">
-                  {{ ot.status }}
-                </span>
-              </div>
+      <div class="ot-card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <span class="date-badge">
+            <i class="far fa-calendar-alt me-2"></i>{{ formatDate(ot.details?.[0]?.workDate) }}
+          </span>
+          <span :class="['status-pill', ot.status?.toLowerCase()]">
+            {{ ot.status }}
+          </span>
+        </div>
 
-              <div class="hour-display mb-2">
-                <span class="h4 fw-bold text-primary">{{ calculateHours(ot.details?.[0]) }}</span>
-                <span class="text-secondary ms-1">hrs</span>
-              </div>
+        <div class="hour-display mb-2">
+          <span class="h4 fw-bold text-primary">{{ calculateHours(ot.details?.[0]) }}</span>
+          <span class="text-secondary ms-1">hrs</span>
+        </div>
 
-              <p class="ot-reason-preview">{{ ot.reason }}</p>
+        <p class="ot-reason-preview">{{ ot.reason }}</p>
 
-              <div class="view-detail-link">
-                <span>View Details</span>
-                <i class="fas fa-arrow-right"></i>
-              </div>
-            </div>
-          </div>
-        </transition-group>
+        <div class="view-detail-link">
+          <span>View Details</span>
+          <i class="fas fa-arrow-right"></i>
+        </div>
       </div>
+    </div>
+  </transition-group>
+</div>
+
+<!-- PAGINATION -->
+<div v-if="totalPages > 1" class="pagination">
+
+  <!-- PREV -->
+  <button 
+    class="page-btn"
+    @click="changePage(currentPage - 1)"
+    :disabled="currentPage === 1"
+  >
+    ‹
+  </button>
+
+  <!-- PAGE NUMBERS -->
+  <button
+    v-for="page in totalPages"
+    :key="page"
+    class="page-number"
+    :class="{ active: currentPage === page }"
+    @click="changePage(page)"
+  >
+    {{ page }}
+  </button>
+
+  <!-- NEXT -->
+  <button 
+    class="page-btn"
+    @click="changePage(currentPage + 1)"
+    :disabled="currentPage === totalPages"
+  >
+    ›
+  </button>
+
+</div>
 
       <div v-if="filteredOT.length === 0" class="empty-state">
         <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" alt="empty" />
@@ -128,6 +178,9 @@ const showRegister = ref(false)
 const ots = ref([])
 const selectedOT = ref(null)
 const selectedStatus = ref("")
+const sortOrder = ref("desc")
+const currentPage = ref(1)
+const itemsPerPage = 6
 
 onMounted(loadOT)
 onActivated(loadOT)
@@ -150,14 +203,53 @@ async function loadOT() {
 
 }
 
+function changePage(page){
+
+  if(page < 1 || page > totalPages.value) return
+
+  currentPage.value = page
+
+}
+
 /* FILTER */
 
 const filteredOT = computed(() => {
 
-  if (!selectedStatus.value) return ots.value
+  let data = [...ots.value]
 
-  return ots.value.filter(x => x.status === selectedStatus.value)
+  /* FILTER STATUS */
 
+  if (selectedStatus.value) {
+    data = data.filter(x => x.status === selectedStatus.value)
+  }
+
+  /* SORT DATE */
+
+  data.sort((a, b) => {
+
+    const dateA = new Date(a.details?.[0]?.workDate)
+    const dateB = new Date(b.details?.[0]?.workDate)
+
+    if (sortOrder.value === "asc") {
+      return dateA - dateB
+    }
+
+    return dateB - dateA
+
+  })
+
+  return data
+
+})
+
+const paginatedOT = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredOT.value.slice(start, end)
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredOT.value.length / itemsPerPage)
 })
 
 /* OPEN DETAIL */
@@ -264,7 +356,8 @@ const handleSuccess = async () => {
 /* FILTER */
 .custom-select-wrapper {
   position: relative;
-  width: 200px;
+  width: auto;
+  min-width: 120px;
 }
 
 .custom-select-wrapper .icon {
@@ -287,6 +380,29 @@ const handleSuccess = async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
+  
+}
+
+.pagination{
+display:flex;
+justify-content:center;
+align-items:center;
+gap:15px;
+margin-top:30px;
+}
+
+.pagination button{
+padding:8px 16px;
+border-radius:8px;
+border:1px solid #e2e8f0;
+background:white;
+cursor:pointer;
+font-weight:500;
+}
+
+.pagination button:disabled{
+opacity:0.4;
+cursor:not-allowed;
 }
 
 .ot-card {
@@ -507,5 +623,54 @@ const handleSuccess = async () => {
     grid-template-columns: 1fr;
     gap: 20px;
   }
+}
+
+/* PAGINATION */
+
+.pagination{
+display:flex;
+justify-content:center;
+align-items:center;
+gap:8px;
+margin-top:35px;
+flex-wrap:wrap;
+}
+
+.page-btn,
+.page-number{
+width:36px;
+height:36px;
+border-radius:10px;
+border:1px solid #e2e8f0;
+background:white;
+cursor:pointer;
+font-weight:600;
+display:flex;
+align-items:center;
+justify-content:center;
+transition:0.25s;
+}
+
+/* HOVER */
+
+.page-btn:hover,
+.page-number:hover{
+background:#f1f5f9;
+}
+
+/* ACTIVE PAGE */
+
+.page-number.active{
+background:#4318ff;
+color:white;
+border-color:#4318ff;
+box-shadow:0 4px 12px rgba(67,24,255,0.25);
+}
+
+/* DISABLED */
+
+.page-btn:disabled{
+opacity:0.4;
+cursor:not-allowed;
 }
 </style>

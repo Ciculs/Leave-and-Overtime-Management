@@ -1,17 +1,18 @@
 <script setup>
-import { computed, ref, onMounted } from "vue"
+import { computed, ref, onMounted, watch } from "vue"
 import { getTeamCalendar } from "@/services/leaveService"
 
 /* DATA */
 
 const leaves = ref([])
+const loadedMonths = ref([])
 
 const viewMode = ref("calendar")
 
 const currentDate = ref(new Date())
 
 const currentMonth = computed(() => currentDate.value.getMonth())
-const currentYear = computed(() => currentDate.value.getFullYear())
+const currentYear = computed(() => selectedYear.value)
 
 const today = new Date().toISOString().split("T")[0]
 
@@ -21,14 +22,52 @@ const selectedDate = ref(null)
 const selectedLeaves = ref([])
 const showPopup = ref(false)
 
+const selectedYear = ref(new Date().getFullYear())
 /* LOAD DATA */
 
-const loadLeaves = async () => {
-  const res = await getTeamCalendar()
-  leaves.value = res.data
+const loadLeaves = async (year, month) => {
+
+  const key = `${year}-${month}`
+
+  if (loadedMonths.value.includes(key)) return
+
+  try {
+
+    const res = await getTeamCalendar(year, month)
+
+    leaves.value = [...leaves.value, ...res.data]
+
+    loadedMonths.value.push(key)
+
+  } catch (err) {
+
+    console.error("Load team calendar error", err)
+
+  }
 }
 
-onMounted(loadLeaves)
+onMounted(() => {
+
+  loadLeaves(currentYear.value, currentMonth.value + 1)
+
+})
+
+watch([currentYear, currentMonth], () => {
+
+  loadLeaves(currentYear.value, currentMonth.value + 1)
+
+})
+
+watch(selectedYear, () => {
+
+  leaves.value = []
+  loadedMonths.value = []
+
+  currentDate.value = new Date(selectedYear.value, currentMonth.value, 1)
+
+  loadLeaves(selectedYear.value, currentMonth.value + 1)
+
+})
 
 /* CALENDAR DATA */
 
@@ -37,8 +76,11 @@ const daysInMonth = computed(() =>
 )
 
 const firstDayOfMonth = computed(() => {
+
   let day = new Date(currentYear.value, currentMonth.value, 1).getDay()
+
   return day === 0 ? 6 : day - 1
+
 })
 
 /* BUILD MAP */
@@ -62,11 +104,13 @@ const leaveMap = computed(() => {
         name: l.employeeName,
         type: l.leaveType
       })
+
     }
 
   })
 
   return map
+
 })
 
 /* MONTH SWITCH */
@@ -78,6 +122,7 @@ const changeMonth = (offset) => {
     currentMonth.value + offset,
     1
   )
+
 }
 
 /* COLOR */
@@ -89,23 +134,63 @@ const leaveColor = (type) => {
   if (type === "Unpaid Leave") return "#6b7280"
 
   return "#6366f1"
+
+}
+
+/* TODAY */
+
+const isToday = (day) => {
+
+  const key =
+    `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+  return key === today
+
+}
+
+/* WEEKEND */
+
+const isWeekend = (day) => {
+
+  const d = new Date(currentYear.value, currentMonth.value, day).getDay()
+
+  return d === 0 || d === 6
+
+}
+
+/* DATE KEY */
+
+const getKey = (day) => {
+
+  return `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
 }
 
 /* OPEN DAY */
 
 const openDay = (day) => {
 
-  const key =
-    `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const key = getKey(day)
 
   selectedDate.value = key
+
   selectedLeaves.value = leaveMap.value[key] || []
 
   showPopup.value = true
+
 }
 
 const closePopup = () => showPopup.value = false
 
+const monthLabel = computed(() => {
+  const date = currentDate.value
+
+  if (!date || isNaN(date)) return ""
+
+  return date.toLocaleString("default", {
+    month: "long"
+  })
+})
 </script>
 
 <template>
@@ -116,24 +201,39 @@ const closePopup = () => showPopup.value = false
 
     <div class="page-header">
 
-
       <div>
         <h2>Team Leave Calendar</h2>
         <p>View approved leave of your team</p>
       </div>
 
-      <div class="view-switch">
+      <div class="header-actions">
 
-        <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
-          List
-        </button>
+        <div class="year-filter">
+          <label>Year:</label>
 
-        <button :class="{ active: viewMode === 'calendar' }" @click="viewMode = 'calendar'">
-          Calendar
-        </button>
+          <select v-model="selectedYear">
+
+            <option v-for="y in [2024, 2025, 2026, 2027, 2028]" :key="y" :value="y">
+              {{ y }}
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="view-toggle">
+
+          <button :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
+            List
+          </button>
+
+          <button :class="{ active: viewMode === 'calendar' }" @click="viewMode = 'calendar'">
+            Calendar
+          </button>
+
+        </div>
 
       </div>
-
 
     </div>
 
@@ -141,60 +241,57 @@ const closePopup = () => showPopup.value = false
 
     <div v-if="viewMode === 'calendar'" class="calendar">
 
-
       <div class="calendar-header">
 
         <button @click="changeMonth(-1)">◀</button>
 
         <h3>
-          {{ new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long' }) }}
-          {{ currentYear }}
+          {{ monthLabel }} {{ currentYear }}
         </h3>
 
         <button @click="changeMonth(1)">▶</button>
 
       </div>
 
+      <!-- ANIMATED GRID -->
 
-      <div class="calendar-grid">
+      <Transition name="calendar-slide" mode="out-in">
+        <div class="calendar-grid" :key="currentMonth">
 
-        <div class="day-name" v-for="d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" :key="d">
-          {{ d }}
-        </div>
-
-
-        <div v-for="n in firstDayOfMonth" :key="'empty-' + n" class="empty-cell"></div>
-
-
-        <div v-for="day in daysInMonth" :key="day" class="day-cell" @click="openDay(day)" :class="{
-          today:
-            today ===
-            `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        }">
-
-          <div class="date-number">
-            {{ day }}
+          <div class="day-name" v-for="d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" :key="d">
+            {{ d }}
           </div>
 
+          <div v-for="n in firstDayOfMonth" :key="'empty-' + n" class="empty-cell"></div>
 
-          <div v-for="leave in leaveMap[
-            `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-          ]" :key="leave.name" class="leave-event" :style="{ background: leaveColor(leave.type) }"
-            :title="leave.name + ' - ' + leave.type">
-            {{ leave.name }}
+          <div v-for="day in daysInMonth" :key="day" class="day-cell" @click="openDay(day)" :class="{
+            today: isToday(day),
+            weekend: isWeekend(day),
+            hasLeave: leaveMap[getKey(day)]
+          }">
+
+            <div class="date-number">{{ day }}</div>
+
+            <div v-for="(leave, i) in (leaveMap[getKey(day)] || []).slice(0, 3)" :key="leave.name + i"
+              class="leave-event" :style="{ background: leaveColor(leave.type) }"
+              :title="leave.name + ' - ' + leave.type">
+              {{ leave.name }}
+            </div>
+
+            <div v-if="(leaveMap[getKey(day)] || []).length > 3" class="more-leave">
+              +{{ leaveMap[getKey(day)].length - 3 }} more
+            </div>
+
           </div>
 
         </div>
-
-      </div>
-
+      </Transition>
 
     </div>
 
     <!-- LIST VIEW -->
 
     <div v-if="viewMode === 'list'" class="list-view">
-
 
       <table>
 
@@ -222,7 +319,6 @@ const closePopup = () => showPopup.value = false
 
       </table>
 
-
     </div>
 
   </div>
@@ -232,7 +328,6 @@ const closePopup = () => showPopup.value = false
   <div v-if="showPopup" class="popup-overlay">
 
     <div class="popup">
-
 
       <h3>Leave on {{ selectedDate }}</h3>
 
@@ -250,7 +345,6 @@ const closePopup = () => showPopup.value = false
 
       <button @click="closePopup">Close</button>
 
-
     </div>
 
   </div>
@@ -258,18 +352,12 @@ const closePopup = () => showPopup.value = false
 </template>
 
 <style scoped>
-.page {
-  padding: 10px;
+.page-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
-
-.page-card{
-  background:white;
-  padding:24px;
-  border-radius:16px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.05);
-}
-
-/* HEADER */
 
 .page-header {
   display: flex;
@@ -284,33 +372,41 @@ const closePopup = () => showPopup.value = false
   font-size: 14px;
 }
 
-/* SWITCH */
-
-.view-switch {
+.view-toggle {
   display: flex;
-  gap: 10px;
+  background: #f4f7fe;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.view-switch button {
+.view-toggle button {
   border: none;
-  padding: 6px 14px;
-  border-radius: 8px;
-  background: #e5e7eb;
+  background: transparent;
+  padding: 8px 18px;
   cursor: pointer;
+  font-weight: 600;
+  color: #707eae;
+  transition: 0.3s;
 }
 
-.view-switch button.active {
-  background: #4318ff;
+.view-toggle button.active {
+  background: linear-gradient(135deg, #4318ff 0%, #3182ce 100%);
   color: white;
 }
-
-/* CALENDAR */
 
 .calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+}
+
+.calendar-header button {
+  background: #eef2ff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .calendar-grid {
@@ -335,12 +431,18 @@ const closePopup = () => showPopup.value = false
 }
 
 .day-cell:hover {
+  transform: translateY(-2px);
   background: #edf2ff;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
 }
 
 .today {
   border: 2px solid #4318ff;
   background: #eef2ff;
+}
+
+.weekend {
+  background: #d8e2ff;
 }
 
 .date-number {
@@ -349,15 +451,23 @@ const closePopup = () => showPopup.value = false
 }
 
 .leave-event {
-  font-size: 11px;
+  font-size: 10px;
   margin-top: 4px;
-  padding: 3px 6px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
   color: white;
   display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-/* LIST */
+.more-leave {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
 
 .list-view table {
   width: 100%;
@@ -370,8 +480,6 @@ const closePopup = () => showPopup.value = false
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
 }
-
-/* POPUP */
 
 .popup-overlay {
   position: fixed;
@@ -396,5 +504,49 @@ const closePopup = () => showPopup.value = false
   padding: 8px 14px;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.calendar-slide-enter-active,
+.calendar-slide-leave-active {
+  transition: all .25s ease;
+}
+
+.calendar-slide-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.calendar-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.hasLeave {
+  border-left: 4px solid #4318ff;
+}
+
+.more-leave {
+  font-size: 10px;
+  margin-top: 3px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.header-actions{
+display:flex;
+align-items:center;
+gap:20px;
+}
+
+.year-filter{
+display:flex;
+align-items:center;
+gap:8px;
+}
+
+.year-filter select{
+padding:6px 10px;
+border-radius:8px;
+border:1px solid #e2e8f0;
 }
 </style>

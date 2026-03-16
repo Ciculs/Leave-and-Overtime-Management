@@ -5,23 +5,44 @@
     <div class="card-container">
       <div class="card">
         <h3>Pending Leave Approval</h3>
-        <p>6</p>
+        <p>{{ stats.pendingLeave }}</p>
       </div>
 
       <div class="card">
         <h3>Pending OT Approval</h3>
-        <p>3</p>
+        <p>{{ stats.pendingOt }}</p>
       </div>
 
       <div class="card">
         <h3>Team Members</h3>
-        <p>15</p>
+        <p>{{ stats.teamMembers }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted } from "vue"
+import api from "@/services/api"
+
+const stats = ref({
+  pendingLeave: 0,
+  pendingOt: 0,
+  teamMembers: 0
+})
+
+const loadStats = async () => {
+  try {
+    const res = await api.get("/Leave/manager-stats")
+    stats.value = res.data
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+onMounted(() => {
+  loadStats()
+})
 </script>
 
 <style scoped>

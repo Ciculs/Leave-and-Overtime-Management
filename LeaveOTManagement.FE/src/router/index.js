@@ -17,7 +17,7 @@ import Reports from "../views/Reports.vue"
 import LeaveTable from "../views/LeaveTable.vue"
 import TeamCalendar from "../views/TeamCalendar.vue"
 
-import CreateUser from "../views/CreateUser.vue"   // ✅ US08
+import CreateUser from "../views/CreateUser.vue"   
 import AssignManager from "../views/AssignManager.vue"
 const routes = [
   {

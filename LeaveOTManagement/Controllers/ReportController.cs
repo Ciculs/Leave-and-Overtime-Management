@@ -31,4 +31,21 @@ public class ReportController : ControllerBase
 
         return Ok(data);
     }
+
+    [HttpGet("leave-trends")]
+    public IActionResult LeaveTrends()
+    {
+        var data = _context.LeaveRequests
+            .Where(x => x.Status == "Approved")
+            .GroupBy(x => x.FromDate.Month)
+            .Select(g => new
+            {
+                Month = g.Key,
+                TotalLeaves = g.Count()
+            })
+            .OrderBy(x => x.Month)
+            .ToList();
+
+        return Ok(data);
+    }
 }
