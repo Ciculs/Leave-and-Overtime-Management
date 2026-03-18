@@ -149,8 +149,9 @@ const login = async () => {
     else if (role === "Manager") router.push("/manager")
     else if (role === "Employee") router.push("/employee")
     else router.push("/")
-  } catch (err) {
-    error.value = "Login failed. Check your credentials."
+    
+  } catch {
+    error.value = "Invalid username or password"
   }
 }
 </script>
