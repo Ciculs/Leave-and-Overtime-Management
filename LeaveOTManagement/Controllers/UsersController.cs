@@ -18,15 +18,30 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
-        // GET ALL USERS
+        // GET ALL USERS + SEARCH (US10 + US13)
         // ===============================
         [HttpGet]
-        public async Task<IActionResult> GetUsers()
+        public async Task<IActionResult> GetUsers(string? search, string? role)
         {
-            var users = await _context.Users
+            var query = _context.Users
                 .Include(u => u.Department)
                 .Include(u => u.Role)
                 .Include(u => u.Manager)
+                .AsQueryable();
+
+            // 🔍 SEARCH NAME
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(u => u.FullName.Contains(search));
+            }
+
+            // 🔍 FILTER ROLE
+            if (!string.IsNullOrEmpty(role))
+            {
+                query = query.Where(u => u.Role.Name == role);
+            }
+
+            var users = await query
                 .Select(u => new
                 {
                     u.Id,
@@ -41,6 +56,53 @@ namespace LeaveOTManagement.Controllers
                 .ToListAsync();
 
             return Ok(users);
+        }
+
+        // ===============================
+        // UPDATE USER (US11)
+        // ===============================
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto dto)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return NotFound("User not found");
+
+            // ✅ CHECK DEPARTMENT
+            var department = await _context.Departments.FindAsync(dto.DepartmentId);
+            if (department == null)
+                return BadRequest("Department không tồn tại");
+
+            // ✅ CHECK ROLE
+            var role = await _context.Roles.FindAsync(dto.RoleId);
+            if (role == null)
+                return BadRequest("Role không tồn tại");
+
+            user.FullName = dto.FullName;
+            user.RoleId = dto.RoleId;
+            user.DepartmentId = dto.DepartmentId;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "User updated successfully" });
+        }
+
+        // ===============================
+        // DEACTIVATE USER (US12)
+        // ===============================
+        [HttpPut("{id}/deactivate")]
+        public async Task<IActionResult> DeactivateUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+
+            if (user == null)
+                return NotFound("User not found");
+
+            user.IsActive = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "User deactivated successfully" });
         }
 
         // ===============================
@@ -140,7 +202,7 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
-        // DELETE USER
+        // DELETE USER (optional)
         // ===============================
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -155,12 +217,11 @@ namespace LeaveOTManagement.Controllers
 
             return Ok(new { message = "User deleted successfully" });
         }
-    
 
-// ===============================
-// ASSIGN MANAGER
-// ===============================
-[HttpPut("assign-manager")]
+        // ===============================
+        // ASSIGN MANAGER
+        // ===============================
+        [HttpPut("assign-manager")]
         public async Task<IActionResult> AssignManager(int userId, int managerId)
         {
             var user = await _context.Users.FindAsync(userId);

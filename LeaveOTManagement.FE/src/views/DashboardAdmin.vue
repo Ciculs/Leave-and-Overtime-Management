@@ -1,6 +1,7 @@
 <template>
   <div class="dashboard">
 
+    <!-- HEADER -->
     <div class="header">
       <h1>Admin Dashboard</h1>
 
@@ -13,41 +14,115 @@
           Assign Manager
         </button>
       </div>
-
     </div>
 
-    <div class="card-container">
+    <!-- SEARCH -->
+    <div class="search-bar">
+      <input v-model="search" placeholder="Search by name..." />
 
-      <div class="card">
-        <h3>Total Users</h3>
-        <p>120</p>
-      </div>
+      <select v-model="role">
+        <option value="">All Roles</option>
+        <option>Admin</option>
+        <option>Manager</option>
+        <option>Employee</option>
+      </select>
 
-      <div class="card">
-        <h3>Total Departments</h3>
-        <p>8</p>
-      </div>
+      <button @click="loadUsers">Search</button>
+    </div>
 
-      <div class="card">
-        <h3>Total Leave Requests</h3>
-        <p>45</p>
-      </div>
+    <!-- USER TABLE -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Department</th>
+            <th>Role</th>
+            <th>Manager</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
 
-      <div class="card">
-        <h3>Total OT Requests</h3>
-        <p>20</p>
-      </div>
+        <tbody>
+          <tr v-for="u in users" :key="u.id">
+            <td>{{ u.employeeCode }}</td>
+            <td>{{ u.fullName }}</td>
+            <td>{{ u.email }}</td>
+            <td>{{ u.department }}</td>
+            <td>{{ u.role }}</td>
+            <td>{{ u.manager || "-" }}</td>
 
+            <td>
+              <span v-if="u.isActive" class="active">Active</span>
+              <span v-else class="inactive">Inactive</span>
+            </td>
+
+            <td>
+              <button class="edit-btn" @click="handleEdit(u)">Edit</button>
+              <button 
+                class="deactivate-btn" 
+                @click="handleDeactivate(u.id)"
+                v-if="u.isActive"
+              >
+                Deactivate
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
+import axios from "../services/axios"
 
 const router = useRouter()
 
+const users = ref([])
+const search = ref("")
+const role = ref("")
+
+// ================= LOAD USERS =================
+const loadUsers = async () => {
+  const res = await axios.get("/users", {
+    params: {
+      search: search.value,
+      role: role.value
+    }
+  })
+  users.value = res.data
+}
+
+// ================= DEACTIVATE =================
+const handleDeactivate = async (id) => {
+  if (!confirm("Are you sure to deactivate this user?")) return
+
+  await axios.put(`/users/${id}/deactivate`)
+  loadUsers()
+}
+
+// ================= EDIT =================
+const handleEdit = async (user) => {
+  const name = prompt("New name", user.fullName)
+  if (!name) return
+
+  await axios.put(`/users/${user.id}`, {
+    fullName: name,
+    roleId: 1,        // tạm hardcode (có thể nâng cấp sau)
+    departmentId: 1
+  })
+
+  loadUsers()
+}
+
+// ================= NAVIGATION =================
 const goCreateUser = () => {
   router.push("/create-user")
 }
@@ -55,6 +130,8 @@ const goCreateUser = () => {
 const goAssignManager = () => {
   router.push("/assign-manager")
 }
+
+onMounted(loadUsers)
 </script>
 
 <style scoped>
@@ -71,13 +148,12 @@ const goAssignManager = () => {
   margin-bottom:25px;
 }
 
-/* action buttons */
 .actions{
   display:flex;
   gap:12px;
 }
 
-/* create user button */
+/* buttons */
 .create-btn{
   background:#4CAF50;
   color:white;
@@ -85,14 +161,8 @@ const goAssignManager = () => {
   padding:10px 18px;
   border-radius:6px;
   cursor:pointer;
-  font-weight:600;
 }
 
-.create-btn:hover{
-  background:#45a049;
-}
-
-/* assign manager button */
 .assign-btn{
   background:#2196F3;
   color:white;
@@ -100,34 +170,77 @@ const goAssignManager = () => {
   padding:10px 18px;
   border-radius:6px;
   cursor:pointer;
+}
+
+/* SEARCH */
+.search-bar{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+}
+
+.search-bar input,
+.search-bar select{
+  padding:8px;
+  border-radius:6px;
+  border:1px solid #ccc;
+}
+
+.search-bar button{
+  padding:8px 14px;
+  background:#333;
+  color:white;
+  border:none;
+  border-radius:6px;
+}
+
+/* TABLE */
+.table-container{
+  background:white;
+  padding:15px;
+  border-radius:10px;
+  box-shadow:0 3px 10px rgba(0,0,0,0.1);
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th, td{
+  padding:10px;
+  text-align:left;
+  border-bottom:1px solid #eee;
+}
+
+/* status */
+.active{
+  color:green;
   font-weight:600;
 }
 
-.assign-btn:hover{
-  background:#1e88e5;
-}
-
-/* cards */
-.card-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-}
-
-.card {
-  background: white;
-  padding: 22px;
-  border-radius: 10px;
-  box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-}
-
-.card h3{
-  margin-bottom:10px;
-}
-
-.card p{
-  font-size:22px;
+.inactive{
+  color:red;
   font-weight:600;
+}
+
+/* action buttons */
+.edit-btn{
+  background:#ffc107;
+  border:none;
+  padding:6px 10px;
+  margin-right:5px;
+  border-radius:5px;
+  cursor:pointer;
+}
+
+.deactivate-btn{
+  background:#f44336;
+  color:white;
+  border:none;
+  padding:6px 10px;
+  border-radius:5px;
+  cursor:pointer;
 }
 
 </style>
