@@ -1,6 +1,5 @@
 <template>
   <aside :class="['sidebar', { collapsed }]">
-
     <div class="mobile-header">
       <div class="brand">
         <div class="logo-box">D</div>
@@ -13,7 +12,6 @@
     </div>
 
     <nav class="nav-menu">
-
       <router-link :to="dashboardLink" class="nav-item">
         📊 <span v-if="!collapsed">Dashboard</span>
       </router-link>
@@ -26,8 +24,13 @@
         <router-link to="/my-ot" class="nav-item">
           ⏱ <span v-if="!collapsed">My OT</span>
         </router-link>
+
+        <router-link to="/personal-calendar" class="nav-item">
+          📅 <span v-if="!collapsed">Personal Calendar</span>
+        </router-link>
       </template>
 
+      <!-- MANAGER -->
       <template v-if="role === 'Manager'">
         <router-link to="/team-approvals" class="nav-item">
           ✅ <span v-if="!collapsed">Team Approvals</span>
@@ -66,7 +69,6 @@
           </router-link>
 
       </template>
-
     </nav>
   </aside>
 </template>
@@ -179,7 +181,6 @@ const dashboardLink = computed(() => {
 
 /* MOBILE */
 @media (max-width: 768px) {
-
   .sidebar {
     width: 100%;
     padding: 15px;

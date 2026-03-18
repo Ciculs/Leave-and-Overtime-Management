@@ -168,11 +168,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onActivated } from "vue"
-import { useRouter } from "vue-router"
+import { useRouter, useRoute } from "vue-router"
 import api from "@/services/api"
 import OTRequest from "./OTRequest.vue"
 
 const router = useRouter()
+const route = useRoute()
 
 const showRegister = ref(false)
 const ots = ref([])
@@ -182,51 +183,45 @@ const sortOrder = ref("desc")
 const currentPage = ref(1)
 const itemsPerPage = 6
 
-onMounted(loadOT)
-onActivated(loadOT)
-
 /* LOAD DATA */
-
 async function loadOT() {
-
   try {
-
     const res = await api.get("/OT")
-
     ots.value = res.data || []
-
   } catch (err) {
-
     console.error("Failed to fetch OT", err)
-
   }
-
 }
 
-function changePage(page){
+/* MOUNT */
+onMounted(() => {
+  loadOT()
 
-  if(page < 1 || page > totalPages.value) return
+  // mở form create OT nếu dashboard gọi
+  if (route.query.create === "true") {
+    showRegister.value = true
+  }
+})
 
+onActivated(loadOT)
+
+/* PAGINATION */
+function changePage(page) {
+  if (page < 1 || page > totalPages.value) return
   currentPage.value = page
-
 }
 
 /* FILTER */
-
 const filteredOT = computed(() => {
-
   let data = [...ots.value]
 
   /* FILTER STATUS */
-
   if (selectedStatus.value) {
     data = data.filter(x => x.status === selectedStatus.value)
   }
 
   /* SORT DATE */
-
   data.sort((a, b) => {
-
     const dateA = new Date(a.details?.[0]?.workDate)
     const dateB = new Date(b.details?.[0]?.workDate)
 
@@ -235,11 +230,9 @@ const filteredOT = computed(() => {
     }
 
     return dateB - dateA
-
   })
 
   return data
-
 })
 
 const paginatedOT = computed(() => {
@@ -253,51 +246,35 @@ const totalPages = computed(() => {
 })
 
 /* OPEN DETAIL */
-
 const openDetail = (ot) => {
-
   selectedOT.value = ot
-
 }
 
 /* EDIT */
-
 const editOT = (id) => {
-
   router.push(`/ot/edit/${id}`)
-
 }
 
 /* FORMAT DATE */
-
 const formatDate = (dateStr) => {
-
   if (!dateStr) return "N/A"
 
   const d = new Date(dateStr)
 
   return d.toLocaleDateString("en-US", {
-
     month: "short",
     day: "numeric",
     year: "numeric"
-
   })
-
 }
 
 /* CALCULATE HOURS */
-
 const calculateHours = (detail) => {
-
   if (!detail?.fromTime || !detail?.toTime) return "0.00"
 
   const parse = (t) => {
-
     const [h, m] = t.split(":").map(Number)
-
     return h + m / 60
-
   }
 
   const from = parse(detail.fromTime)
@@ -306,17 +283,12 @@ const calculateHours = (detail) => {
   const diff = to < from ? (to + 24) - from : to - from
 
   return diff.toFixed(2)
-
 }
 
 /* AFTER CREATE SUCCESS */
-
 const handleSuccess = async () => {
-
   showRegister.value = false
-
   await loadOT()
-
 }
 </script>
 

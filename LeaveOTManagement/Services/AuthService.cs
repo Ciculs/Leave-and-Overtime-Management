@@ -3,7 +3,6 @@ using LeaveOTManagement.DTOs;
 using LeaveOTManagement.Models.Entities;
 using LeaveOTManagement.Service.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -95,10 +94,11 @@ namespace LeaveOTManagement.Service
                 issuer: issuer,
                 audience: audience,
                 claims: claims,
-                expires: DateTime.Now.AddMinutes(expireMinutes),
+                expires: DateTime.Now.AddMinutes(10),
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+        
     }
 }
