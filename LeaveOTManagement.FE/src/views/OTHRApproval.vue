@@ -46,8 +46,8 @@
 
 <select v-model="selectedStatus" class="filter-select">
 <option value="">All Requests</option>
-<option value="Pending">Pending</option>
-<option value="HRApproved">Approved</option>
+<option value="ManagerApproved">Pending (Manager Approved)</option>
+<option value="Approved">HR Approved</option>
 <option value="Rejected">Rejected</option>
 </select>
 
@@ -229,7 +229,7 @@ HR Decision
 <!-- ACTION -->
 
 <div
-v-if="selectedOT.status==='Pending'"
+v-if="selectedOT.userApprovalStatus === 'Pending' && selectedOT.status === 'ManagerApproved'"
 class="modal-actions"
 >
 
@@ -322,15 +322,15 @@ const itemsPerPage = 6
 const loading = ref(false)
 
 const pendingCount = computed(() =>
-  ots.value.filter(x => x.status === "Pending").length
+  ots.value.filter(x => x.userApprovalStatus === "Pending" && x.status === "ManagerApproved").length
 )
 
 const approvedCount = computed(() =>
-  ots.value.filter(x => x.status === "HRApproved").length
+  ots.value.filter(x => x.status === "Approved" || x.userApprovalStatus === "Approved").length
 )
 
 const rejectedCount = computed(() =>
-  ots.value.filter(x => x.status === "Rejected").length
+  ots.value.filter(x => x.status === "Rejected" || x.userApprovalStatus === "Rejected").length
 )
 onMounted(loadOT)
 
@@ -435,20 +435,15 @@ selectedOT.value=ot
 }
 
 async function hrApprove(id){
-
-try{
-
-await api.put(`/OT/${id}/hr-approve`)
-
-await loadOT()
-
-selectedOT.value=null
-
-}
-catch(err){
-console.error(err)
-}
-
+  try{
+    await api.put(`/OT/${id}/hr-approve`)
+    await loadOT()
+    selectedOT.value=null
+  }
+  catch(err){
+    console.error(err)
+    alert("Lỗi khi phê duyệt: " + (err.response?.data?.message || err.message))
+  }
 }
 
 function reject(id){
@@ -616,6 +611,9 @@ margin-left:5px;
 .reason{
 color:#475569;
 margin-bottom:16px;
+word-wrap: break-word;
+overflow-wrap: break-word;
+word-break: break-word;
 }
 
 .view-link{
@@ -632,9 +630,15 @@ font-size:12px;
 font-weight:600;
 }
 
-.status-pill.hrapproved{
+.status-pill.hrapproved,
+.status-pill.approved{
 background:#dcfce7;
 color:#15803d;
+}
+
+.status-pill.managerapproved{
+background:#fef9c3;
+color:#854d0e;
 }
 
 .status-pill.rejected{
@@ -714,6 +718,9 @@ gap:16px;
 background:#f8fafc;
 padding:14px;
 border-radius:10px;
+word-wrap: break-word;
+overflow-wrap: break-word;
+word-break: break-all;
 }
 
 .info-card.full{

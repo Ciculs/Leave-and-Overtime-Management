@@ -14,6 +14,7 @@ import HolidayList from "../views/HolidayList.vue"
 import Reports from "../views/Reports.vue"
 import LeaveTable from "@/views/LeaveTable.vue"
 import TeamCalendar from "../views/TeamCalendar.vue"
+
 const routes = [{
         path: "/login",
         component: Login
@@ -92,6 +93,7 @@ const routes = [{
                 component: () =>
                     import ("../views/ReportDashboard.vue")
             }
+
         ]
     }
 ]

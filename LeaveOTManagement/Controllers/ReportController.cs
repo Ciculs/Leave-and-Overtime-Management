@@ -1,4 +1,5 @@
-﻿using LeaveOTManagement.Data;
+using LeaveOTManagement.Data;
+using LeaveOTManagement.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,10 +9,12 @@ using Microsoft.AspNetCore.Mvc;
 public class ReportController : ControllerBase
 {
     private readonly LeaveOTContext _context;
+    private readonly IOTService _otService;
 
-    public ReportController(LeaveOTContext context)
+    public ReportController(LeaveOTContext context, IOTService otService)
     {
         _context = context;
+        _otService = otService;
     }
 
     [HttpGet("top-ot")]
@@ -100,4 +103,5 @@ public class ReportController : ControllerBase
             "OT_Report.csv"
         );
     }
+
 }

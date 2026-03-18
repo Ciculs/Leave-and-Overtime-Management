@@ -1,4 +1,5 @@
-﻿using LeaveOTManagement.Data;
+
+using LeaveOTManagement.Data;
 using LeaveOTManagement.DTOs.OT;
 using LeaveOTManagement.Models.Entities;
 using LeaveOTManagement.Services.Interfaces;
@@ -216,40 +217,33 @@ namespace LeaveOTManagement.Services
 
         public async Task<List<OtResponseDto>> GetPendingApprovalsAsync(int approverId)
         {
-            var approvals = await _context.Approvals
-                .Where(a =>
-                    a.ApproverId == approverId &&
-                    a.RequestType == "OT")
-                .Select(a => new
-                {
-                    a.RequestId,
-                    a.Status,
-                    a.ApprovalLevel
-                })
+            var userApprovals = await _context.Approvals
+                .Where(a => a.ApproverId == approverId && a.RequestType == "OT")
                 .ToListAsync();
 
-            if (!approvals.Any())
+            if (!userApprovals.Any())
                 return new List<OtResponseDto>();
 
-            var requestIds = approvals
-                .Select(a => a.RequestId)
-                .Distinct()
-                .ToList();
+            var requestIds = userApprovals.Select(a => a.RequestId).Distinct().ToList();
 
             var requests = await _context.Otrequests
                 .Include(x => x.Otdetails)
+                .Include(x => x.User)
                 .Where(x => requestIds.Contains(x.Id))
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
-            var result = requests
-                .Select(x => new OtResponseDto
+            return requests.Select(x => {
+                var myApproval = userApprovals.First(a => a.RequestId == x.Id);
+                return new OtResponseDto
                 {
                     Id = x.Id,
                     Reason = x.Reason ?? "",
                     Status = x.Status ?? "",
                     CreatedAt = x.CreatedAt ?? DateTime.MinValue,
-
+                    EmployeeName = x.User?.FullName ?? "Unknown",
+                    UserApprovalStatus = myApproval.Status ?? "Pending",
+                    CurrentApprovalLevel = x.CurrentApprovalLevel ?? 1,
                     Details = x.Otdetails.Select(d => new OtDetailDto
                     {
                         WorkDate = d.WorkDate,
@@ -257,10 +251,16 @@ namespace LeaveOTManagement.Services
                         ToTime = d.ToTime,
                         Hours = d.Hours
                     }).ToList()
-                })
-                .ToList();
-
-            return result;
+                };
+            })
+            // Lọc để hiển thị:
+            // - Yêu cầu đang chờ ở đúng cấp độ (CurrentApprovalLevel == myLevel)
+            // - Hoặc bất kỳ yêu cầu nào mà bản thân mình ĐÃ xử lý rồi (Status != Pending) -> Để xem lịch sử
+            .Where(dto => {
+                var myLevel = userApprovals.First(a => a.RequestId == dto.Id).ApprovalLevel;
+                return dto.CurrentApprovalLevel == myLevel || dto.UserApprovalStatus != "Pending";
+            })
+            .ToList();
         }
 
         public async Task ManagerApproveOtAsync(long requestId, int approverId)
@@ -282,30 +282,13 @@ namespace LeaveOTManagement.Services
             if (ot.CurrentApprovalLevel != 1)
                 throw new Exception("Manager approval already processed");
 
-            // Manager approve
+            // Manager phê duyệt
             approval.Status = "Approved";
             approval.ActionDate = DateTime.Now;
 
-            // Move workflow to HR
+            // Chuyển cấp độ sang HR (Level 2)
             ot.CurrentApprovalLevel = 2;
             ot.Status = "ManagerApproved";
-
-            // 🔥 CREATE HR APPROVAL RECORD
-            var hrUsers = await _context.Users
-                .Where(u => u.RoleId == 3)
-                 .ToListAsync();
-
-            foreach (var hr in hrUsers)
-            {
-                _context.Approvals.Add(new Approval
-                {
-                    RequestId = requestId,
-                    RequestType = "OT",
-                    ApproverId = hr.Id,
-                    ApprovalLevel = 2,
-                    Status = "Pending"
-                });
-            }
 
             await _context.SaveChangesAsync();
         }
@@ -334,8 +317,8 @@ namespace LeaveOTManagement.Services
             approval.Status = "Approved";
             approval.ActionDate = DateTime.Now;
 
-            // FINAL APPROVAL
-            ot.CurrentApprovalLevel = 3;
+            // HR PHÊ DUYỆT CUỐI CÙNG
+            ot.CurrentApprovalLevel = 2; // Giữ ở mức cao nhất
             ot.Status = "Approved";
 
             await _context.SaveChangesAsync();
@@ -365,7 +348,7 @@ namespace LeaveOTManagement.Services
             approval.ActionDate = DateTime.Now;
 
             // Stop workflow
-            ot.Status = "Rejected";         
+            ot.Status = "Rejected";
             ot.CurrentApprovalLevel = -1;
 
             await _context.SaveChangesAsync();

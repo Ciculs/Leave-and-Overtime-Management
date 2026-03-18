@@ -1,4 +1,4 @@
-﻿namespace LeaveOTManagement.DTOs.OT
+namespace LeaveOTManagement.DTOs.OT
 {
     public class OtResponseDto
     {
@@ -7,6 +7,9 @@
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
 
+        public string EmployeeName { get; set; } = string.Empty;
+        public string UserApprovalStatus { get; set; } = string.Empty;
+        public int CurrentApprovalLevel { get; set; }
         public List<OtDetailDto> Details { get; set; } = new();
     }
 }
