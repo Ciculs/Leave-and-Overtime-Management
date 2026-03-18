@@ -25,17 +25,29 @@
           <!-- Dates -->
           <div class="date-row">
 
-            <div class="form-group">
-              <label>Start Date</label>
-              <input type="date" v-model="form.startDate" :min="today" :max="endOfYear" required />
-            </div>
+  <div class="form-group">
+    <label>Start Date</label>
+    <input 
+      type="date" 
+      v-model="form.startDate" 
+      :min="today" 
+      @change="e => validateDate(e, 'start')"
+      required 
+    />
+  </div>
 
-            <div class="form-group">
-              <label>End Date</label>
-              <input type="date" v-model="form.endDate" :min="form.startDate || today" :max="endOfYear" required />
-            </div>
+  <div class="form-group">
+    <label>End Date</label>
+    <input 
+      type="date" 
+      v-model="form.endDate" 
+      :min="form.startDate || today" 
+      @change="e => validateDate(e, 'end')"
+      required 
+    />
+  </div>
 
-          </div>
+</div>
 
           <!-- Reason -->
           <div class="form-group">
@@ -173,10 +185,22 @@ const daysRequested = computed(() => {
 
   if (end < start) return 0
 
-  const diffTime = end - start
+  let count = 0
+  let current = new Date(start)
 
-  return Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-
+  while (current <= end) {
+    const day = current.getDay()
+    
+    let y = current.getFullYear()
+    let m = String(current.getMonth() + 1).padStart(2, '0')
+    let d = String(current.getDate()).padStart(2, '0')
+    let dateString = `${y}-${m}-${d}`
+    if (day !== 0 && day !== 6 && !holidays.value.includes(dateString)) {
+      count++
+    }
+    current.setDate(current.getDate() + 1)
+  }
+  return count
 })
 
 const isBalanceError = computed(() => {
@@ -189,6 +213,54 @@ const isBalanceError = computed(() => {
   return daysRequested.value > currentBalance.value
 
 })
+/* ========================
+   HOLIDAY DATE
+======================== */
+import { getHolidays } from "@/services/holidayService"
+
+const holidays = ref([])
+
+const fetchHolidays = async () => {
+  try {
+    const res = await getHolidays()
+    holidays.value = res.data.map(h => h.holidayDate.split("T")[0])
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+
+/* ========================
+   Fix Ngay Nghi
+======================== */
+const validateDate = (event, field) => {
+  const dateStr = event.target.value
+  const date = new Date(dateStr)
+  const day = date.getDay()
+
+  if (day === 0 || day === 6) {
+    window.$toast("Không được chọn ngày cuối tuần", "warning")
+    if (field === 'start') {
+      form.startDate = ""
+    } else {
+      form.endDate = ""
+    }
+    return
+  }
+
+  if (holidays.value.includes(dateStr)) {
+    window.$toast("Không được chọn ngày nghỉ lễ", "warning")
+    if (field === 'start') {
+      form.startDate = ""
+    } else {
+      form.endDate = ""
+    }
+    return
+  }
+}
+
+
+
 
 /* ========================
    SUBMIT
@@ -215,6 +287,7 @@ const submitLeave = async () => {
       leaveTypeId: form.leaveTypeId,
       fromDate: form.startDate,
       toDate: form.endDate,
+      totalDays: daysRequested.value,
       reason: form.reason
     })
 

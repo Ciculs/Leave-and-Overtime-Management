@@ -33,8 +33,17 @@ export default {
   },
 
   async mounted() {
-    await this.loadOTChart();
-    await this.loadLeaveChart();
+    try {
+      await this.loadOTChart();
+    } catch (err) {
+      console.error("Load OT chart failed", err);
+    }
+
+    try {
+      await this.loadLeaveChart();
+    } catch (err) {
+      console.error("Load Leave chart failed", err);
+    }
   },
 
   beforeUnmount() {
@@ -43,95 +52,111 @@ export default {
   },
 
   methods: {
+
     async loadOTChart() {
-      const token = localStorage.getItem("token");
+      try {
 
-      const res = await axios.get(
-        "https://localhost:7121/api/Report/top-ot",
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+        const token = localStorage.getItem("token");
 
-      const labels = res.data.map(x => "User " + x.userId);
-      const values = res.data.map(x => x.totalHours);
-
-      if (this.otChartInstance) {
-        this.otChartInstance.destroy();
-      }
-
-      this.otChartInstance = new Chart(
-        document.getElementById("otChart"),
-        {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [
-              {
-                label: "OT Hours",
-                data: values
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false
+        const res = await axios.get(
+          "https://localhost:7121/api/Report/top-ot",
+          {
+            headers: { Authorization: `Bearer ${token}` }
           }
+        );
+
+        const data = res.data || [];
+
+        const labels = data.map(x => "User " + x.userId);
+        const values = data.map(x => x.totalHours);
+
+        if (this.otChartInstance) {
+          this.otChartInstance.destroy();
         }
-      );
+
+        this.otChartInstance = new Chart(
+          document.getElementById("otChart"),
+          {
+            type: "bar",
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: "OT Hours",
+                  data: values
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          }
+        );
+
+      } catch (err) {
+        console.error("Error loading OT chart:", err);
+      }
     },
 
     async loadLeaveChart() {
-      const token = localStorage.getItem("token");
 
-      const res = await axios.get(
-        "https://localhost:7121/api/Report/leave-trends",
-        {
-          headers: { Authorization: `Bearer ${token}` }
+      try {
+
+        const token = localStorage.getItem("token");
+
+        const res = await axios.get(
+          "https://localhost:7121/api/Report/leave-trends",
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+
+        const data = res.data || [];
+
+        const labels = data.map(x => "Month " + x.month);
+        const values = data.map(x => x.totalLeaves);
+
+        if (this.leaveChartInstance) {
+          this.leaveChartInstance.destroy();
         }
-      );
 
-      const labels = res.data.map(x => "Month " + x.month);
-      const values = res.data.map(x => x.totalLeaves);
+        this.leaveChartInstance = new Chart(
+          document.getElementById("leaveChart"),
+          {
+            type: "line",
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: "Total Leaves",
+                  data: values,
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          }
+        );
 
-      if (this.leaveChartInstance) {
-        this.leaveChartInstance.destroy();
+      } catch (err) {
+        console.error("Error loading leave chart:", err);
       }
 
-      this.leaveChartInstance = new Chart(
-        document.getElementById("leaveChart"),
-        {
-          type: "line",
-          data: {
-            labels,
-            datasets: [
-              {
-                label: "Total Leaves",
-                data: values,
-                fill: false
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false
-          }
-        }
-      );
     }
+
   }
 };
 </script>
 
 <style scoped>
 
-/* PAGE */
-
 .report-page {
   padding: 30px;
 }
-
-/* CHART LAYOUT */
 
 .chart-container {
   display: flex;
@@ -140,7 +165,6 @@ export default {
   align-items: stretch;
 }
 
-/* CARD */
 .chart-card {
   flex: 1;
   background: white;
@@ -151,13 +175,10 @@ export default {
   flex-direction: column;
 }
 
-/* Chart wrapper để khống chế chiều cao */
 .chart-card canvas {
   width: 100% !important;
-  height: 320px !important; 
+  height: 320px !important;
 }
-
-/* TABLET */
 
 @media (max-width: 1024px) {
   .chart-container {
@@ -169,7 +190,6 @@ export default {
   }
 }
 
-/* MOBILE */
 @media (max-width: 600px) {
 
   .report-page {

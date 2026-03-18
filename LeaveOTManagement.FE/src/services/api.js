@@ -1,17 +1,17 @@
 import axios from "axios"
+import router from "@/router"
 
 const api = axios.create({
   baseURL: "https://localhost:7121/api",
   timeout: 10000
 })
 
-
-/* ADD TOKEN TO EVERY REQUEST */
-
+/* =========================
+   Request Interceptor
+   Tự động gửi JWT token
+========================= */
 api.interceptors.request.use(
-
   (config) => {
-
     const token = localStorage.getItem("token")
 
     if (token) {
@@ -20,31 +20,41 @@ api.interceptors.request.use(
 
     return config
   },
-
   (error) => {
     return Promise.reject(error)
   }
-
 )
 
-
-/* HANDLE TOKEN EXPIRED */
-
+/* =========================
+   Response Interceptor
+   Xử lý 401 / 403
+========================= */
 api.interceptors.response.use(
-
-  (response) => response,
-
+  (response) => {
+    return response
+  },
   (error) => {
+    if (error.response) {
+      const status = error.response.status
 
-    if (error.response && error.response.status === 401) {
+      // Token hết hạn / chưa login
+      if (status === 401) {
+        alert("Session expired. Please login again.")
 
-      console.warn("Token expired")
+        localStorage.removeItem("token")
+        localStorage.removeItem("role")
 
+        router.push("/login")
+      }
+
+      // Không có quyền
+      if (status === 403) {
+        alert("You do not have permission to access this page.")
+      }
     }
 
     return Promise.reject(error)
   }
-
 )
 
 export default api
