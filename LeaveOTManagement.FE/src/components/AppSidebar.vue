@@ -21,6 +21,7 @@
 
       <!-- EMPLOYEE -->
       <template v-if="role === 'Employee'">
+
         <router-link to="/my-leaves" class="nav-item">
           📄 <span v-if="!collapsed">My Leave Requests</span>
         </router-link>
@@ -28,9 +29,13 @@
         <router-link to="/my-ot" class="nav-item">
           ⏱ <span v-if="!collapsed">My OT</span>
         </router-link>
+
+        <router-link to="/personal-calendar" class="nav-item">
+          📅 <span v-if="!collapsed">Personal Calendar</span>
+        </router-link>
+
       </template>
 
-      <!-- MANAGER -->
       <!-- MANAGER -->
       <template v-if="role === 'Manager'">
         <router-link to="/manager" class="nav-item">

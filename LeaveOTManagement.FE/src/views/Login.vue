@@ -80,20 +80,12 @@ const login = async () => {
     localStorage.setItem("token", token)
     localStorage.setItem("role", role)
 
-    if (role === "Admin") {
-      router.push("/admin")
-    } 
-    else if (role === "Manager") {
-      router.push("/manager")
-    } 
-    else if (role === "Employee") {
-      router.push("/employee")
-    } 
-    else {
-      router.push("/")
-    }
-
-  } catch (err) {
+    if (role === "Admin") router.push("/admin")
+    else if (role === "Manager") router.push("/manager")
+    else if (role === "Employee") router.push("/employee")
+    else router.push("/")
+    
+  } catch {
     error.value = "Invalid username or password"
   }
 }

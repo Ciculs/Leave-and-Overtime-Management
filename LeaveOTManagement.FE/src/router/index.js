@@ -9,6 +9,7 @@ import DashboardEmployee from "../views/DashboardEmployee.vue"
 import LeaveRequest from "../views/LeaveRequest.vue"
 import OTList from "../views/OTList.vue"
 import OTEdit from "../views/OTEdit.vue"
+import PersonalCalendar from "../views/PersonalCalendar.vue"
 
 import HolidayList from "../views/HolidayList.vue"
 import Reports from "../views/Reports.vue"
@@ -54,8 +55,11 @@ const routes = [
         component: OTEdit,
         meta: { role: "Employee" }
       },
-
-      // ✅ HR ROUTES
+      {
+        path: "personal-calendar",
+        component: PersonalCalendar,
+        meta: { role: "Employee" }
+      },  
       {
         path: "holidays",
         component: HolidayList,
@@ -66,16 +70,28 @@ const routes = [
         component: Reports,
         meta: { role: "HR" }
       },
-      { 
-        path: "my-leaves", 
-        component: LeaveTable, 
-        meta: { role: "Employee" } 
+      {
+        path: "my-leaves",
+        component: LeaveTable,
+        meta: { role: "Employee" }
       },
       {
         path: "team-calendar",
         component: TeamCalendar,
         meta: { role: "Manager" }
+      },
+      {
+        path: '/team-approvals',
+        name: 'TeamApprovals',
+        component: () => import('../views/ManagerApproval.vue')
+      },
+      {
+        path: '/hr-approvals',
+        name: 'HRApprovals',
+        component: () => import('../views/HRApproval.vue'),
+        meta: { role: 'HR' }
       }
+
     ]
   }
 ]

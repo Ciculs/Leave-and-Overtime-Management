@@ -118,19 +118,17 @@
 
 <script setup>
 import { ref, computed, onMounted, onActivated } from "vue"
-import { useRouter } from "vue-router"
+import { useRouter, useRoute } from "vue-router"
 import api from "@/services/api"
 import OTRequest from "./OTRequest.vue"
 
 const router = useRouter()
+const route = useRoute()
 
 const showRegister = ref(false)
 const ots = ref([])
 const selectedOT = ref(null)
 const selectedStatus = ref("")
-
-onMounted(loadOT)
-onActivated(loadOT)
 
 /* LOAD DATA */
 
@@ -142,13 +140,30 @@ async function loadOT() {
 
     ots.value = res.data || []
 
-  } catch (err) {
+  } 
+  catch (err) {
 
     console.error("Failed to fetch OT", err)
 
   }
 
 }
+
+/* MOUNT */
+
+onMounted(() => {
+
+  loadOT()
+
+  // mở form create OT nếu dashboard gọi
+  if (route.query.create === "true") {
+    showRegister.value = true
+  }
+
+})
+
+onActivated(loadOT)
+
 
 /* FILTER */
 
@@ -160,6 +175,7 @@ const filteredOT = computed(() => {
 
 })
 
+
 /* OPEN DETAIL */
 
 const openDetail = (ot) => {
@@ -168,6 +184,7 @@ const openDetail = (ot) => {
 
 }
 
+
 /* EDIT */
 
 const editOT = (id) => {
@@ -175,6 +192,7 @@ const editOT = (id) => {
   router.push(`/ot/edit/${id}`)
 
 }
+
 
 /* FORMAT DATE */
 
@@ -185,14 +203,13 @@ const formatDate = (dateStr) => {
   const d = new Date(dateStr)
 
   return d.toLocaleDateString("en-US", {
-
     month: "short",
     day: "numeric",
     year: "numeric"
-
   })
 
 }
+
 
 /* CALCULATE HOURS */
 
@@ -216,6 +233,7 @@ const calculateHours = (detail) => {
   return diff.toFixed(2)
 
 }
+
 
 /* AFTER CREATE SUCCESS */
 
