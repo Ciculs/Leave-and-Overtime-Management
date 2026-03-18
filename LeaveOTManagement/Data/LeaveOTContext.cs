@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using LeaveOTManagement.Models.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -278,6 +278,24 @@ public partial class LeaveOTContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Users__RoleId__44FF419A");
+        });
+
+        modelBuilder.Entity<PayrollLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("PayrollLogs");
+
+            entity.Property(e => e.Hours).HasColumnType("decimal(5, 2)");
+            entity.Property(e => e.RateMultiplier).HasColumnType("decimal(3, 2)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.Otrequest).WithMany()
+                .HasForeignKey(d => d.OTRequestId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);

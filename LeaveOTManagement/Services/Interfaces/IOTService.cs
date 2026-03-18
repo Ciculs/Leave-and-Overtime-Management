@@ -1,4 +1,5 @@
-﻿using LeaveOTManagement.DTOs.OT;
+﻿using LeaveOTManagement.DTOs;
+using LeaveOTManagement.DTOs.OT;
 
 namespace LeaveOTManagement.Services.Interfaces
 {

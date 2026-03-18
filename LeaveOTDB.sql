@@ -369,3 +369,56 @@ FROM ApprovalWorkflows
 SELECT Id, RoleId
 FROM Users
 WHERE RoleId = (SELECT RoleId FROM Roles WHERE Name='HR')
+
+
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PayrollLogs]') AND type in (N'U'))
+BEGIN
+    CREATE TABLE [dbo].[PayrollLogs](
+        [Id] [bigint] IDENTITY(1,1) NOT NULL,
+        [UserId] [int] NOT NULL,
+        [OTRequestId] [bigint] NOT NULL,
+        [WorkDate] [datetime] NOT NULL,
+        [Hours] [decimal](5, 2) NOT NULL,
+        [RateMultiplier] [decimal](3, 2) NOT NULL DEFAULT 1.5,
+        [CreatedAt] [datetime] NOT NULL DEFAULT GETDATE(),
+        CONSTRAINT [PK_PayrollLogs] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+
+    ALTER TABLE [dbo].[PayrollLogs]  WITH CHECK ADD  CONSTRAINT [FK_PayrollLogs_OTRequests] FOREIGN KEY([OTRequestId])
+    REFERENCES [dbo].[OTRequests] ([Id]);
+
+    ALTER TABLE [dbo].[PayrollLogs]  WITH CHECK ADD  CONSTRAINT [FK_PayrollLogs_Users] FOREIGN KEY([UserId])
+    REFERENCES [dbo].[Users] ([Id]);
+END
+GO
+
+DELETE FROM ApprovalWorkflows WHERE RequestType = 'OT';
+
+INSERT INTO ApprovalWorkflows (RequestType, [Level], RoleId, IsActive)
+VALUES 
+('OT', 1, 2, 1), -- Cấp 1: Manager (RoleId = 2 trong database của bạn)
+('OT', 2, 3, 1); -- Cấp 2: HR (RoleId = 3 trong database của bạn)
+GO
+
+PRINT 'Database LeaveOTDB has been updated successfully.';
+
+
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[PayrollLogs]') AND name = 'Amount')
+BEGIN
+    ALTER TABLE [dbo].[PayrollLogs] ADD [Amount] [decimal](18, 2) NULL;
+    PRINT 'Added column [Amount] to [PayrollLogs].';
+END
+GO
+
+-- Đảm bảo Workflow HR luôn ở cấp 2
+IF NOT EXISTS (SELECT 1 FROM ApprovalWorkflows WHERE RequestType = 'OT' AND Level = 2)
+BEGIN
+    INSERT INTO ApprovalWorkflows (RequestType, [Level], RoleId, IsActive)
+    VALUES ('OT', 2, 3, 1);
+    PRINT 'Added HR Workflow level 2.';
+END
+GO
+
+PRINT 'SQL Hotfix executed successfully.';

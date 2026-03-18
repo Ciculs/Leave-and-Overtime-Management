@@ -40,12 +40,12 @@ const routes = [
         meta: { role: "Admin" }
       },
 
+      // ================= HR (USER MANAGEMENT) =================
       {
         path: "create-user",
         component: CreateUser,
         meta: { role: "HR" }
       },
-
       {
         path: "assign-manager",
         component: AssignManager,
@@ -58,17 +58,22 @@ const routes = [
         component: DashboardManager,
         meta: { role: "Manager" }
       },
-
       {
         path: "team-calendar",
         component: TeamCalendar,
         meta: { role: "Manager" }
       },
-
       {
         path: "team-approvals",
         name: "TeamApprovals",
         component: () => import("../views/ManagerApproval.vue"),
+        meta: { role: "Manager" }
+      },
+
+      // 👉 giữ thêm từ AnhNH
+      {
+        path: "ot-manager-approval",
+        component: () => import("../views/OTManagerApproval.vue"),
         meta: { role: "Manager" }
       },
 
@@ -78,31 +83,26 @@ const routes = [
         component: DashboardEmployee,
         meta: { role: "Employee" }
       },
-
       {
         path: "leave/new",
         component: LeaveRequest,
         meta: { role: "Employee" }
       },
-
       {
         path: "my-leaves",
         component: LeaveTable,
         meta: { role: "Employee" }
       },
-
       {
         path: "my-ot",
         component: OTList,
         meta: { role: "Employee" }
       },
-
       {
         path: "ot/edit/:id",
         component: OTEdit,
         meta: { role: "Employee" }
       },
-
       {
         path: "personal-calendar",
         component: PersonalCalendar,
@@ -115,18 +115,25 @@ const routes = [
         component: HolidayList,
         meta: { role: "HR" }
       },
-
       {
         path: "reports",
         component: Reports,
         meta: { role: "HR" }
       },
-
       {
         path: "hr-approvals",
         name: "HRApprovals",
         component: () => import("../views/HRApproval.vue"),
         meta: { role: "HR" }
+      },
+      {
+        path: "ot-hr-approval",
+        component: () => import("../views/OTHRApproval.vue"),
+        meta: { role: "HR" }
+      },
+      {
+        path: "/report-dashboard",
+        component: () => import("../views/ReportDashboard.vue")
       }
     ]
   }
@@ -143,12 +150,10 @@ router.beforeEach((to) => {
   const token = localStorage.getItem("token")
   const role = localStorage.getItem("role")
 
-  // chưa login nhưng vào trang cần auth
   if (to.matched.some(record => record.meta.requiresAuth) && !token) {
     return "/login"
   }
 
-  // đã login nhưng vào login
   if (to.path === "/login" && token) {
     if (role === "Admin") return "/admin"
     if (role === "Manager") return "/manager"
@@ -156,7 +161,6 @@ router.beforeEach((to) => {
     if (role === "HR") return "/holidays"
   }
 
-  // check role
   const requiredRole = to.matched.find(r => r.meta.role)?.meta.role
 
   if (requiredRole && requiredRole !== role) {

@@ -104,9 +104,14 @@ class="avatar"
 </p>
 
 
-<span class="status-pill" :class="ot.status.toLowerCase()">
-{{ ot.status }}
-</span>
+                <span class="status-pill" :class="ot.status.toLowerCase()">
+                    {{ ot.status === 'ManagerApproved' ? 'Approved' : ot.status }}
+                </span>
+
+                <!-- Thêm nhãn nếu chính mình đã duyệt -->
+                <span v-if="ot.userApprovalStatus === 'Approved'" class="status-pill approved" style="margin-left:5px">
+                    (Voted)
+                </span>
 
 </div>
 
@@ -216,27 +221,30 @@ class="avatar-lg"
 </div>
 
 
-<div class="modal-actions">
+                <div class="modal-actions" v-if="selectedOT.userApprovalStatus === 'Pending' && selectedOT.status === 'Pending'">
 
-<button
-class="approve-btn"
-:disabled="approving"
-@click="approve(selectedOT.id)"
->
+                    <button
+                        class="approve-btn"
+                        :disabled="approving"
+                        @click="approve(selectedOT.id)"
+                    >
 
-<span v-if="approving" class="loader"></span>
-<span v-else>Approve</span>
+                        <span v-if="approving" class="loader"></span>
+                        <span v-else>Approve</span>
 
-</button>
+                    </button>
 
-<button
-class="reject-btn"
-@click="openReject"
->
-Reject
-</button>
+                    <button
+                        class="reject-btn"
+                        @click="openReject"
+                    >
+                        Reject
+                    </button>
 
-</div>
+                </div>
+                <div v-else class="status-notice">
+                    This request has been <strong>{{ selectedOT.status }}</strong>
+                </div>
 
 </div>
 
@@ -334,7 +342,11 @@ const filteredOT = computed(()=>{
 let data = [...ots.value]
 
 if(selectedStatus.value){
-data = data.filter(x => x.status === selectedStatus.value)
+    if (selectedStatus.value === "Approved") {
+        data = data.filter(x => x.status === "ManagerApproved" || x.status === "Approved")
+    } else {
+        data = data.filter(x => x.status === selectedStatus.value)
+    }
 }
 
 if(search.value){
@@ -480,7 +492,7 @@ return (end - start).toFixed(2)
 const totalOT = computed(()=> ots.value.length)
 
 const pendingOT = computed(()=>{
-return ots.value.filter(x => x.status === "Pending").length
+return ots.value.filter(x => x.userApprovalStatus === "Pending" && x.status === "Pending").length
 })
 
 </script>
@@ -631,6 +643,9 @@ color:#4f46e5;
 .reason{
 margin-top:8px;
 color:#555;
+word-wrap: break-word;
+overflow-wrap: break-word;
+word-break: break-word;
 }
 
 
@@ -645,8 +660,23 @@ font-size:12px;
 }
 
 .status-pill.pending{background:#fff7ed;color:#c2410c}
-.status-pill.approved{background:#ecfdf5;color:#15803d}
+.status-pill.approved,
+.status-pill.managerapproved{background:#ecfdf5;color:#15803d}
 .status-pill.rejected{background:#fef2f2;color:#b91c1c}
+
+.status-notice {
+    margin-top: 20px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    text-align: center;
+    color: #64748b;
+}
+
+.status-notice strong {
+    color: #4f46e5;
+    text-transform: capitalize;
+}
 
 
 /* PAGINATION */
@@ -768,6 +798,9 @@ border:1px solid #e2e8f0;
 border-radius:12px;
 padding:16px;
 transition:0.25s;
+word-wrap: break-word;
+overflow-wrap: break-word;
+word-break: break-all;
 }
 
 .info-card:hover{

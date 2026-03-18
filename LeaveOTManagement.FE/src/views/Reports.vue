@@ -2,6 +2,26 @@
   <div class="report-page">
     <h2>Dashboard Statistics</h2>
 
+    <!-- KPI CARDS -->
+<div class="kpi-container">
+
+  <div class="kpi-card">
+    <div class="kpi-title">Total OT Employees</div>
+    <div class="kpi-value">{{ totalEmployees }}</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-title">Total OT Hours</div>
+    <div class="kpi-value">{{ totalHours }}</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-title">Leave Requests</div>
+    <div class="kpi-value">{{ totalLeaves }}</div>
+  </div>
+
+</div>
+
     <div class="chart-container">
       <div class="chart-card">
         <h3>Top 5 Employees - OT Hours</h3>
@@ -28,7 +48,12 @@ export default {
   data() {
     return {
       otChartInstance: null,
-      leaveChartInstance: null
+      leaveChartInstance: null,
+
+      // KPI
+      totalEmployees: 0,
+      totalHours: 0,
+      totalLeaves: 0
     };
   },
 
@@ -66,6 +91,14 @@ export default {
         );
 
         const data = res.data || [];
+
+        // KPI calculation
+        this.totalEmployees = data.length;
+
+        this.totalHours = data.reduce(
+          (sum, x) => sum + x.totalHours,
+          0
+        );
 
         const labels = data.map(x => "User " + x.userId);
         const values = data.map(x => x.totalHours);
@@ -114,6 +147,12 @@ export default {
 
         const data = res.data || [];
 
+        // KPI calculation
+        this.totalLeaves = data.reduce(
+          (sum, x) => sum + x.totalLeaves,
+          0
+        );
+
         const labels = data.map(x => "Month " + x.month);
         const values = data.map(x => x.totalLeaves);
 
@@ -158,21 +197,48 @@ export default {
   padding: 30px;
 }
 
-.chart-container {
-  display: flex;
-  gap: 30px;
+/* KPI DASHBOARD */
+
+.kpi-container {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 20px;
   margin-top: 20px;
-  align-items: stretch;
+}
+
+.kpi-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.kpi-title {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  margin-top: 6px;
+  color: #111827;
+}
+
+/* CHART LAYOUT */
+
+.chart-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-top: 30px;
 }
 
 .chart-card {
-  flex: 1;
   background: white;
   padding: 20px;
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
 }
 
 .chart-card canvas {
@@ -180,14 +246,22 @@ export default {
   height: 320px !important;
 }
 
+/* RESPONSIVE */
+
 @media (max-width: 1024px) {
+
   .chart-container {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
-  .chart-card canvas {
-    height: 300px !important;
+}
+
+@media (max-width: 768px) {
+
+  .kpi-container{
+    grid-template-columns:1fr;
   }
+
 }
 
 @media (max-width: 600px) {
@@ -211,6 +285,7 @@ export default {
   h3 {
     font-size: 16px;
   }
+
 }
 
 </style>
