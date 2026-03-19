@@ -3,11 +3,13 @@ using LeaveOTManagement.Models.DTOs;
 using LeaveOTManagement.Models.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LeaveOTManagement.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "HR,Admin")]
     public class UsersController : ControllerBase
     {
         private readonly LeaveOTContext _context;
