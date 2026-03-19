@@ -1,358 +1,418 @@
 <template>
   <div class="leave-container">
-
-    <div class="page-header">
-
-  <h2>My Leave Requests</h2>
-
-  <router-link to="/leave/new" class="register-btn">
-    + Register Leave Request
-  </router-link>
-
-</div>
-
-    <div class="leave-list">
-
-      <div
-        v-for="leave in leaves"
-        :key="leave.id"
-        class="leave-card"
-        @click="openDetail(leave)"
-      >
-
-        <div class="leave-header">
-          <span class="leave-type">{{ leave.leaveType }}</span>
-
-          <span :class="['status', leave.status?.toLowerCase()]">
-            {{ leave.status }}
-          </span>
-        </div>
-
-        <div class="leave-date">
-          📅 {{ formatDate(leave.fromDate) }} → {{ formatDate(leave.toDate) }}
-        </div>
-
-        <div class="leave-days">
-          {{ leave.totalDays }} day(s)
-        </div>
-
-        <p class="leave-reason">
-          {{ leave.reason }}
-        </p>
-
-        <div class="view-detail">
-          Tap to view detail →
-        </div>
-
-      </div>
-
+    <div class="header-actions">
+      <h2>My Leave Requests</h2>
+      <router-link to="/leave/new" class="new-btn">+ New Request</router-link>
     </div>
 
+    <div class="table-wrapper">
+      <table class="leave-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>From Date</th>
+            <th>To Date</th>
+            <th>Days</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="leave in leaves" :key="leave.id">
+            <td class="font-medium">{{ leave.leaveType }}</td>
+            <td>{{ formatDate(leave.fromDate) }}</td>
+            <td>{{ formatDate(leave.toDate) }}</td>
+            <td>{{ leave.totalDays }}</td>
+            <td class="reason-cell">{{ leave.reason }}</td>
+            <td>
+              <span :class="['status-badge', sanitizeStatus(leave.status)]">
+                {{ leave.status }}
+              </span>
+            </td>
+            <td class="action-cells">
+              <template v-if="leave.status.includes('Pending')">
+                <button class="edit-btn" @click="openEdit(leave)">✏️ Edit</button>
+                <button class="cancel-btn" @click="cancelLeave(leave.id)">✖ Cancel</button>
+              </template>
+            </td>
+          </tr>
+          <tr v-if="leaves.length === 0">
+            <td colspan="7" class="text-center no-data">No leave requests found.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-    <!-- MODAL -->
-    <div
-      v-if="selectedLeave"
-      class="modal-overlay"
-      @click.self="selectedLeave = null"
-    >
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content">
+        <h3>Edit Leave Request</h3>
+        
+        <div class="form-group">
+          <label>Leave Type</label>
+          <select v-model="editForm.leaveTypeId" required>
+            <option v-for="type in leaveTypes" :key="type.leaveTypeId" :value="type.leaveTypeId">
+              {{ type.leaveTypeName }}
+            </option>
+          </select>
+        </div>
 
-      <div class="modal-card">
-
-        <h3>Leave Request Detail</h3>
-
-        <p><strong>Type:</strong> {{ selectedLeave.leaveType }}</p>
-        <p><strong>From:</strong> {{ formatDate(selectedLeave.fromDate) }}</p>
-        <p><strong>To:</strong> {{ formatDate(selectedLeave.toDate) }}</p>
-        <p><strong>Total Days:</strong> {{ selectedLeave.totalDays }}</p>
-        <p><strong>Status:</strong> {{ selectedLeave.status }}</p>
-
-        <div class="reason-section">
-          <strong>Reason:</strong>
-
-          <div class="reason-box">
-            {{ selectedLeave.reason }}
+        <div class="form-row">
+          <div class="form-group">
+            <label>From Date</label>
+            <input type="date" v-model="editForm.fromDate" required />
+          </div>
+          <div class="form-group">
+            <label>To Date</label>
+            <input type="date" v-model="editForm.toDate" required />
           </div>
         </div>
 
-        <button class="close-btn" @click="selectedLeave=null">
-          Close
-        </button>
+        <div class="form-group">
+          <label>Reason</label>
+          <textarea v-model="editForm.reason" rows="3" required></textarea>
+        </div>
 
+        <div class="modal-actions">
+          <button class="save-btn" @click="submitEdit">Save Changes</button>
+          <button class="close-btn" @click="closeModal">Close</button>
+        </div>
       </div>
-
     </div>
 
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"
-import api from "@/services/api"
+import { ref, onMounted } from "vue";
+import api from "@/services/api";
 
-const leaves = ref([])
-const selectedLeave = ref(null)
+const leaves = ref([]);
+const leaveTypes = ref([]);
+const showModal = ref(false);
 
-const formatDate = (date) => {
-  return new Date(date).toLocaleDateString("vi-VN")
-}
+const editForm = ref({
+  id: null,
+  leaveTypeId: "",
+  fromDate: "",
+  toDate: "",
+  reason: ""
+});
 
-const openDetail = (leave) => {
-  selectedLeave.value = leave
-}
+const loadData = async () => {
+  try {
+    const res = await api.get("/Leave/my");
+    leaves.value = res.data;
+  } catch (error) {
+    console.error("Error loading leaves", error);
+  }
+};
 
-onMounted(async () => {
-  const res = await api.get("/Leave/my")
-  leaves.value = res.data
-})
+// Gọi API lấy số dư để tiện trích xuất danh sách các Loại phép (Leave Types) cho Modal Edit
+const loadLeaveTypes = async () => {
+  try {
+    const res = await api.get("/Leave/balances");
+    const uniqueTypes = [];
+    const map = new Map();
+    for (const item of res.data) {
+      if (!map.has(item.leaveTypeId)) {
+        map.set(item.leaveTypeId, true);
+        uniqueTypes.push({
+          leaveTypeId: item.leaveTypeId,
+          leaveTypeName: item.leaveTypeName
+        });
+      }
+    }
+    leaveTypes.value = uniqueTypes;
+  } catch (error) {
+    console.error("Error loading types", error);
+  }
+};
+
+onMounted(() => {
+  loadData();
+  loadLeaveTypes();
+});
+
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-GB");
+};
+
+const sanitizeStatus = (status) => {
+  if (!status) return "";
+  return status.toLowerCase().replace(" ", "-");
+};
+
+/* --- US23: CANCEL LEAVE --- */
+const cancelLeave = async (id) => {
+  if (!confirm("Are you sure you want to cancel this leave request? (Your leave balance will be refunded)")) return;
+  try {
+    await api.put(`/Leave/cancel/${id}`);
+    window.$toast ? window.$toast("Cancelled successfully", "success") : alert("Cancelled successfully");
+    await loadData();
+  } catch (error) {
+    console.error(error);
+    const msg = error.response?.data?.message || "Cancel failed";
+    window.$toast ? window.$toast(msg, "error") : alert(msg);
+  }
+};
+
+/* --- US24: EDIT LEAVE --- */
+const openEdit = (leave) => {
+  // Tìm ID của loại phép dựa trên tên hiển thị
+  const typeObj = leaveTypes.value.find(t => t.leaveTypeName === leave.leaveType);
+  
+  // Format ngày về chuẩn YYYY-MM-DD để hiển thị trên thẻ <input type="date">
+  const formatForInput = (dateStr) => {
+      const d = new Date(dateStr);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+  };
+
+  editForm.value = {
+    id: leave.id,
+    leaveTypeId: typeObj ? typeObj.leaveTypeId : "",
+    fromDate: formatForInput(leave.fromDate),
+    toDate: formatForInput(leave.toDate),
+    reason: leave.reason
+  };
+  showModal.value = true;
+};
+
+const closeModal = () => {
+  showModal.value = false;
+};
+
+const submitEdit = async () => {
+  try {
+    await api.put(`/Leave/${editForm.value.id}`, {
+      leaveTypeId: editForm.value.leaveTypeId,
+      fromDate: editForm.value.fromDate,
+      toDate: editForm.value.toDate,
+      reason: editForm.value.reason
+      // Không cần truyền totalDays, backend sẽ tự động tính toán lại
+    });
+    window.$toast ? window.$toast("Updated successfully", "success") : alert("Updated successfully");
+    closeModal();
+    await loadData();
+  } catch (error) {
+    console.error(error);
+    const msg = error.response?.data?.message || "Update failed";
+    window.$toast ? window.$toast(msg, "error") : alert(msg);
+  }
+};
 </script>
 
 <style scoped>
-
-.leave-container{
-  background:white;
-  padding:30px;
-  border-radius:16px;
-}
-.page-header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:20px;
+.leave-container {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 
-/* BUTTON */
-
-.register-btn{
-background:linear-gradient(135deg,#6a5cff,#4318ff);
-color:white;
-padding:10px 18px;
-border-radius:10px;
-font-weight:600;
-text-decoration:none;
-transition:0.2s;
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
 }
 
-.register-btn:hover{
-opacity:0.9;
+h2 {
+  color: #2b3674;
+  margin: 0;
 }
 
-h2{
-  margin-bottom:20px;
+.new-btn {
+  background-color: #a2d2ff; /* Pastel Blue */
+  color: #003049;
+  padding: 10px 20px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.new-btn:hover {
+  background-color: #8bbfff;
+  transform: translateY(-2px);
 }
 
-
-/* ====================== */
-/* GRID LIST */
-/* ====================== */
-
-.leave-list{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
-  gap:20px;
+.table-wrapper {
+  overflow-x: auto;
 }
 
-
-/* ====================== */
-/* CARD */
-/* ====================== */
-
-.leave-card{
-  background:#f9fafc;
-  padding:18px;
-  border-radius:14px;
-  border:1px solid #eee;
-  cursor:pointer;
-
-  transition:0.25s;
-
-  overflow:hidden;
+.leave-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.leave-card:hover{
-  transform:translateY(-3px);
-  box-shadow:0 6px 16px rgba(0,0,0,0.08);
+.leave-table th {
+  background-color: #e0fbfc; /* Very Light Blue */
+  color: #003049;
+  text-align: left;
+  padding: 15px;
+  font-weight: 600;
+  border-bottom: 2px solid #e2e8f0;
 }
 
-.leave-header{
-  display:flex;
-  justify-content:space-between;
-  font-weight:600;
+.leave-table td {
+  padding: 15px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #475569;
+  vertical-align: middle;
 }
 
-.leave-type{
-  color:#2b3674;
+.font-medium {
+  font-weight: 600;
+  color: #2b3674;
 }
 
-.leave-date{
-  margin-top:8px;
-  font-size:14px;
+.reason-cell {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.leave-days{
-  font-size:13px;
-  color:#666;
+/* Status Badges */
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.status-badge.pending, .status-badge.pending-hr {
+  background: #fff5e6;
+  color: #d97706;
+}
+.status-badge.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+.status-badge.rejected, .status-badge.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
-
-/* FIX REASON PREVIEW */
-
-.leave-reason{
-  margin-top:10px;
-  font-size:14px;
-  color:#444;
-
-  word-break:break-all;
-  overflow-wrap:anywhere;
-
-  display:-webkit-box;
-  -webkit-line-clamp:2;
-  -webkit-box-orient:vertical;
-
-  overflow:hidden;
+/* Action Buttons */
+.action-cells {
+  display: flex;
+  gap: 8px;
 }
 
-
-.view-detail{
-  margin-top:12px;
-  font-size:12px;
-  color:#4318ff;
+.edit-btn, .cancel-btn {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s;
 }
 
-
-/* ====================== */
-/* STATUS */
-/* ====================== */
-
-.status{
-  padding:4px 10px;
-  border-radius:12px;
-  font-size:12px;
+.edit-btn {
+  background-color: #b5e48c; /* Pastel Green */
+  color: #003049;
+}
+.edit-btn:hover {
+  background-color: #9ce065;
 }
 
-.approved{
-  background:#e6f9f0;
-  color:#1a9b5c;
+.cancel-btn {
+  background-color: #ffc8dd; /* Pastel Pink */
+  color: #5c001f;
+}
+.cancel-btn:hover {
+  background-color: #ffb0cd;
 }
 
-.pending{
-  background:#fff5e6;
-  color:#d97706;
+.no-data {
+  padding: 40px !important;
+  color: #94a3b8;
 }
 
-.rejected{
-  background:#ffe6e6;
-  color:#dc2626;
+/* Modal Styling */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
 }
 
-
-/* ====================== */
-/* MODAL */
-/* ====================== */
-
-.modal-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.45);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  width: 500px;
+  max-width: 100%;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
 }
 
-.modal-card{
-  background:white;
-  padding:30px;
-  border-radius:16px;
-
-  width:650px;
-  max-width:90vw;
-
-  max-height:80vh;
-  overflow:hidden;
+.modal-content h3 {
+  margin-top: 0;
+  color: #2b3674;
+  margin-bottom: 20px;
 }
 
-
-/* REASON BOX SCROLL */
-
-.reason-section{
-  margin-top:10px;
+.form-row {
+  display: flex;
+  gap: 15px;
 }
 
-.reason-box{
-  margin-top:8px;
-  padding:12px;
-
-  border:1px solid #ddd;
-  border-radius:8px;
-
-  background:#fafafa;
-
-  max-height:180px;
-  overflow-y:auto;
-
-  word-break:break-all;
+.form-group {
+  margin-bottom: 15px;
+  flex: 1;
 }
 
-
-.close-btn{
-  margin-top:20px;
-  background:#4318ff;
-  color:white;
-  border:none;
-  padding:10px 16px;
-  border-radius:8px;
-  cursor:pointer;
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #475569;
+  font-size: 14px;
 }
 
-
-/* ====================== */
-/* TABLET */
-/* ====================== */
-
-@media (max-width:1024px){
-
-.leave-list{
-grid-template-columns:repeat(2,1fr);
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: inherit;
 }
 
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 25px;
 }
 
-
-/* ====================== */
-/* MOBILE */
-/* ====================== */
-
-@media (max-width:768px){
-
-.leave-container{
-padding:20px;
+.save-btn {
+  flex: 1;
+  background-color: #a2d2ff;
+  color: #003049;
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.leave-list{
-grid-template-columns:1fr;
-gap:15px;
+.close-btn {
+  flex: 1;
+  background-color: #e2e8f0;
+  color: #475569;
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
 }
-
-.modal-card{
-width:100%;
-padding:20px;
-}
-
-.reason-box{
-max-height:140px;
-}
-
-.page-header{
-flex-direction:column;
-align-items:flex-start;
-gap:10px;
-}
-
-.register-btn{
-width:100%;
-text-align:center;
-}
-
-}
-
 </style>
