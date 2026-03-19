@@ -26,7 +26,7 @@
         </router-link>
 
         <router-link to="/my-ot" class="nav-item">
-          ⏱ <span v-if="!collapsed">My OT</span>
+          ⏱ <span v-if="!collapsed">My OT Requests</span>
         </router-link>
       </template>
 
