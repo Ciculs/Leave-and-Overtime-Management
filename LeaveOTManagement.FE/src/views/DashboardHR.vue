@@ -3,11 +3,11 @@
 
     <!-- HEADER -->
     <div class="header">
-      <h1>Admin Dashboard</h1>
+      <h1>HR Dashboard</h1>
 
       <div class="actions">
         <button class="create-btn" @click="goCreateUser">
-          + Create User
+          + Create Employee
         </button>
 
         <button class="assign-btn" @click="goAssignManager">
@@ -16,9 +16,34 @@
       </div>
     </div>
 
+    <!-- STATS -->
+    <div class="card-container">
+
+      <div class="card">
+        <h3>Total Employees</h3>
+        <p>{{ users.length }}</p>
+      </div>
+
+      <div class="card">
+        <h3>Active Users</h3>
+        <p>{{ activeCount }}</p>
+      </div>
+
+      <div class="card">
+        <h3>Inactive Users</h3>
+        <p>{{ inactiveCount }}</p>
+      </div>
+
+      <div class="card">
+        <h3>Managers</h3>
+        <p>{{ managerCount }}</p>
+      </div>
+
+    </div>
+
     <!-- SEARCH -->
     <div class="search-bar">
-      <input v-model="search" placeholder="Search by name..." />
+      <input v-model="search" placeholder="Search employee..." />
 
       <select v-model="role">
         <option value="">All Roles</option>
@@ -79,7 +104,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"
+import { ref, onMounted, computed } from "vue"
 import { useRouter } from "vue-router"
 import axios from "../services/axios"
 
@@ -100,9 +125,22 @@ const loadUsers = async () => {
   users.value = res.data
 }
 
+// ================= STATS =================
+const activeCount = computed(() =>
+  users.value.filter(u => u.isActive).length
+)
+
+const inactiveCount = computed(() =>
+  users.value.filter(u => !u.isActive).length
+)
+
+const managerCount = computed(() =>
+  users.value.filter(u => u.role === "Manager").length
+)
+
 // ================= DEACTIVATE =================
 const handleDeactivate = async (id) => {
-  if (!confirm("Are you sure to deactivate this user?")) return
+  if (!confirm("Deactivate this employee?")) return
 
   await axios.put(`/users/${id}/deactivate`)
   loadUsers()
@@ -115,7 +153,7 @@ const handleEdit = async (user) => {
 
   await axios.put(`/users/${user.id}`, {
     fullName: name,
-    roleId: 1,        // tạm hardcode (có thể nâng cấp sau)
+    roleId: 1,
     departmentId: 1
   })
 
@@ -148,6 +186,7 @@ onMounted(loadUsers)
   margin-bottom:25px;
 }
 
+/* actions */
 .actions{
   display:flex;
   gap:12px;
@@ -172,26 +211,31 @@ onMounted(loadUsers)
   cursor:pointer;
 }
 
+/* cards */
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: white;
+  padding: 22px;
+  border-radius: 10px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+}
+
+.card p{
+  font-size:22px;
+  font-weight:600;
+}
+
 /* SEARCH */
 .search-bar{
   display:flex;
   gap:10px;
   margin-bottom:20px;
-}
-
-.search-bar input,
-.search-bar select{
-  padding:8px;
-  border-radius:6px;
-  border:1px solid #ccc;
-}
-
-.search-bar button{
-  padding:8px 14px;
-  background:#333;
-  color:white;
-  border:none;
-  border-radius:6px;
 }
 
 /* TABLE */
@@ -209,29 +253,25 @@ table{
 
 th, td{
   padding:10px;
-  text-align:left;
   border-bottom:1px solid #eee;
 }
 
 /* status */
 .active{
   color:green;
-  font-weight:600;
 }
 
 .inactive{
   color:red;
-  font-weight:600;
 }
 
-/* action buttons */
+/* buttons */
 .edit-btn{
   background:#ffc107;
   border:none;
   padding:6px 10px;
   margin-right:5px;
   border-radius:5px;
-  cursor:pointer;
 }
 
 .deactivate-btn{
@@ -240,7 +280,6 @@ th, td{
   border:none;
   padding:6px 10px;
   border-radius:5px;
-  cursor:pointer;
 }
 
 </style>

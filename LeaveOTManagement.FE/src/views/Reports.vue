@@ -2,6 +2,26 @@
   <div class="report-page">
     <h2>Dashboard Statistics</h2>
 
+    <!-- KPI CARDS -->
+<div class="kpi-container">
+
+  <div class="kpi-card">
+    <div class="kpi-title">Total OT Employees</div>
+    <div class="kpi-value">{{ totalEmployees }}</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-title">Total OT Hours</div>
+    <div class="kpi-value">{{ totalHours }}</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-title">Leave Requests</div>
+    <div class="kpi-value">{{ totalLeaves }}</div>
+  </div>
+
+</div>
+
     <div class="chart-container">
       <div class="chart-card">
         <h3>Top 5 Employees - OT Hours</h3>
@@ -28,13 +48,27 @@ export default {
   data() {
     return {
       otChartInstance: null,
-      leaveChartInstance: null
+      leaveChartInstance: null,
+
+      // KPI
+      totalEmployees: 0,
+      totalHours: 0,
+      totalLeaves: 0
     };
   },
 
   async mounted() {
-    await this.loadOTChart();
-    await this.loadLeaveChart();
+    try {
+      await this.loadOTChart();
+    } catch (err) {
+      console.error("Load OT chart failed", err);
+    }
+
+    try {
+      await this.loadLeaveChart();
+    } catch (err) {
+      console.error("Load Leave chart failed", err);
+    }
   },
 
   beforeUnmount() {
@@ -43,133 +77,193 @@ export default {
   },
 
   methods: {
+
     async loadOTChart() {
-      const token = localStorage.getItem("token");
+      try {
 
-      const res = await axios.get(
-        "https://localhost:7121/api/Report/top-ot",
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+        const token = localStorage.getItem("token");
 
-      const labels = res.data.map(x => "User " + x.userId);
-      const values = res.data.map(x => x.totalHours);
-
-      if (this.otChartInstance) {
-        this.otChartInstance.destroy();
-      }
-
-      this.otChartInstance = new Chart(
-        document.getElementById("otChart"),
-        {
-          type: "bar",
-          data: {
-            labels,
-            datasets: [
-              {
-                label: "OT Hours",
-                data: values
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false
+        const res = await axios.get(
+          "https://localhost:7121/api/Report/top-ot",
+          {
+            headers: { Authorization: `Bearer ${token}` }
           }
+        );
+
+        const data = res.data || [];
+
+        // KPI calculation
+        this.totalEmployees = data.length;
+
+        this.totalHours = data.reduce(
+          (sum, x) => sum + x.totalHours,
+          0
+        );
+
+        const labels = data.map(x => "User " + x.userId);
+        const values = data.map(x => x.totalHours);
+
+        if (this.otChartInstance) {
+          this.otChartInstance.destroy();
         }
-      );
+
+        this.otChartInstance = new Chart(
+          document.getElementById("otChart"),
+          {
+            type: "bar",
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: "OT Hours",
+                  data: values
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          }
+        );
+
+      } catch (err) {
+        console.error("Error loading OT chart:", err);
+      }
     },
 
     async loadLeaveChart() {
-      const token = localStorage.getItem("token");
 
-      const res = await axios.get(
-        "https://localhost:7121/api/Report/leave-trends",
-        {
-          headers: { Authorization: `Bearer ${token}` }
+      try {
+
+        const token = localStorage.getItem("token");
+
+        const res = await axios.get(
+          "https://localhost:7121/api/Report/leave-trends",
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+
+        const data = res.data || [];
+
+        // KPI calculation
+        this.totalLeaves = data.reduce(
+          (sum, x) => sum + x.totalLeaves,
+          0
+        );
+
+        const labels = data.map(x => "Month " + x.month);
+        const values = data.map(x => x.totalLeaves);
+
+        if (this.leaveChartInstance) {
+          this.leaveChartInstance.destroy();
         }
-      );
 
-      const labels = res.data.map(x => "Month " + x.month);
-      const values = res.data.map(x => x.totalLeaves);
+        this.leaveChartInstance = new Chart(
+          document.getElementById("leaveChart"),
+          {
+            type: "line",
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: "Total Leaves",
+                  data: values,
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          }
+        );
 
-      if (this.leaveChartInstance) {
-        this.leaveChartInstance.destroy();
+      } catch (err) {
+        console.error("Error loading leave chart:", err);
       }
 
-      this.leaveChartInstance = new Chart(
-        document.getElementById("leaveChart"),
-        {
-          type: "line",
-          data: {
-            labels,
-            datasets: [
-              {
-                label: "Total Leaves",
-                data: values,
-                fill: false
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false
-          }
-        }
-      );
     }
+
   }
 };
 </script>
 
 <style scoped>
 
-/* PAGE */
-
 .report-page {
   padding: 30px;
+}
+
+/* KPI DASHBOARD */
+
+.kpi-container {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.kpi-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.kpi-title {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  margin-top: 6px;
+  color: #111827;
 }
 
 /* CHART LAYOUT */
 
 .chart-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 30px;
-  margin-top: 20px;
-  align-items: stretch;
+  margin-top: 30px;
 }
 
-/* CARD */
 .chart-card {
-  flex: 1;
   background: white;
   padding: 20px;
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
 }
 
-/* Chart wrapper để khống chế chiều cao */
 .chart-card canvas {
   width: 100% !important;
-  height: 320px !important; 
+  height: 320px !important;
 }
 
-/* TABLET */
+/* RESPONSIVE */
 
 @media (max-width: 1024px) {
+
   .chart-container {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
-  .chart-card canvas {
-    height: 300px !important;
-  }
 }
 
-/* MOBILE */
+@media (max-width: 768px) {
+
+  .kpi-container{
+    grid-template-columns:1fr;
+  }
+
+}
+
 @media (max-width: 600px) {
 
   .report-page {
@@ -191,6 +285,7 @@ export default {
   h3 {
     font-size: 16px;
   }
+
 }
 
 </style>

@@ -20,7 +20,12 @@ ExcelPackage.License.SetNonCommercialPersonal("LeaveOTManagement");
 // ===============================
 // Add Services
 // ===============================
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // ===============================
@@ -84,6 +89,7 @@ builder.Services.AddDbContext<LeaveOTContext>(options =>
 // ===============================
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOTService, OTService>();
+builder.Services.AddScoped<LeaveService>();
 
 // ===============================
 // CORS
@@ -116,12 +122,39 @@ builder.Services.AddAuthentication(options =>
     {
         ValidateIssuer = true,
         ValidateAudience = true,
-        ValidateLifetime = true,
+        ValidateLifetime = true,   // CHECK TOKEN EXPIRE
         ValidateIssuerSigningKey = true,
+        ClockSkew = TimeSpan.Zero, // KHÔNG delay thêm thời gian
 
         ValidIssuer = jwtSection["Issuer"],
         ValidAudience = jwtSection["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+
+    // ===============================
+    // HANDLE TOKEN EXPIRED
+    // ===============================
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
+            {
+                context.Response.Headers.Add("Token-Expired", "true");
+            }
+            return Task.CompletedTask;
+        },
+
+        OnChallenge = context =>
+        {
+            context.HandleResponse();
+
+            context.Response.StatusCode = 401;
+            context.Response.ContentType = "application/json";
+
+            return context.Response.WriteAsync(
+                "{\"message\": \"Unauthorized or Token Expired\"}");
+        }
     };
 });
 

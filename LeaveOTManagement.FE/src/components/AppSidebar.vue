@@ -1,7 +1,5 @@
 <template>
   <aside :class="['sidebar', { collapsed }]">
-
-    <!-- TOP BAR (Mobile Toggle) -->
     <div class="mobile-header">
       <div class="brand">
         <div class="logo-box">D</div>
@@ -14,12 +12,10 @@
     </div>
 
     <nav class="nav-menu">
-
       <router-link :to="dashboardLink" class="nav-item">
         📊 <span v-if="!collapsed">Dashboard</span>
       </router-link>
 
-      <!-- EMPLOYEE -->
       <template v-if="role === 'Employee'">
         <router-link to="/my-leaves" class="nav-item">
           📄 <span v-if="!collapsed">My Leave Requests</span>
@@ -28,26 +24,51 @@
         <router-link to="/my-ot" class="nav-item">
           ⏱ <span v-if="!collapsed">My OT Requests</span>
         </router-link>
+
+        <router-link to="/personal-calendar" class="nav-item">
+          📅 <span v-if="!collapsed">Personal Calendar</span>
+        </router-link>
       </template>
 
       <!-- MANAGER -->
       <template v-if="role === 'Manager'">
-        <router-link to="/manager" class="nav-item">
+        <router-link to="/team-approvals" class="nav-item">
           ✅ <span v-if="!collapsed">Team Approvals</span>
         </router-link>
+
+        <router-link to="/ot-manager-approval" class="nav-item">
+          ⏱ <span v-if="!collapsed">OT Approvals</span>
+        </router-link>
+
+        <router-link to="/team-calendar" class="nav-item">
+          📅 <span v-if="!collapsed">Team Calendar</span>
+        </router-link>
       </template>
 
-      <!-- HR -->
       <template v-if="role === 'HR'">
+        <router-link to="/hr-approvals" class="nav-item">
+          ✅ <span v-if="!collapsed">HR Approvals</span>
+        </router-link>
+
         <router-link to="/holidays" class="nav-item">
-          📅 <span v-if="!collapsed">Holiday Calendar</span>
+        📅 <span v-if="!collapsed">Holiday Calendar</span>
         </router-link>
 
+        <router-link to="/ot-hr-approval" class="nav-item">
+        ⏱ <span v-if="!collapsed">OT HR Approval</span>
+        </router-link>
+
+      <!-- REPORT CHARTS (file Reports.vue hiện tại) -->
         <router-link to="/reports" class="nav-item">
-          📈 <span v-if="!collapsed">Reporting</span>
+    📈  <span v-if="!collapsed">Analytics</span>
         </router-link>
-      </template>
 
+      <!-- NEW REPORT DASHBOARD (US37 + US38) -->
+         <router-link to="/report-dashboard" class="nav-item">
+        📑 <span v-if="!collapsed">Report Dashboard</span>
+          </router-link>
+
+      </template>
     </nav>
   </aside>
 </template>
@@ -160,7 +181,6 @@ const dashboardLink = computed(() => {
 
 /* MOBILE */
 @media (max-width: 768px) {
-
   .sidebar {
     width: 100%;
     padding: 15px;

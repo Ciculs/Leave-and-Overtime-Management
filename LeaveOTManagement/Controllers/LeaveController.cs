@@ -1,6 +1,7 @@
 using LeaveOTManagement.Data;
 using LeaveOTManagement.DTOs;
 using LeaveOTManagement.Models.Entities;
+using LeaveOTManagement.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,15 +15,18 @@ namespace LeaveOTManagement.Controllers
     public class LeaveController : ControllerBase
     {
         private readonly LeaveOTContext _context;
+        private readonly LeaveService _leaveService;
 
-        public LeaveController(LeaveOTContext context)
+        public LeaveController(LeaveOTContext context, LeaveService leaveService)
         {
             _context = context;
+            _leaveService = leaveService;
         }
 
         /* =====================================================
            GET LEAVE BALANCES
         ===================================================== */
+
         [HttpGet("balances")]
         public async Task<IActionResult> GetBalances()
         {
@@ -39,7 +43,8 @@ namespace LeaveOTManagement.Controllers
                     TotalDays = b.TotalDays,
                     UsedDays = b.UsedDays,
                     RemainingDays = b.TotalDays - b.UsedDays
-                }).ToListAsync();
+                })
+                .ToListAsync();
 
             var unpaidLeave = await _context.LeaveTypes
                 .FirstOrDefaultAsync(l => l.MaxDaysPerYear == null);
@@ -59,9 +64,289 @@ namespace LeaveOTManagement.Controllers
             return Ok(balances);
         }
 
+        [HttpPut("cancel/{id}")]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> CancelLeave(long id)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var leave = await _context.LeaveRequests.FindAsync(id);
+
+            if (leave == null || leave.UserId != userId) return NotFound();
+            if (leave.Status != "Pending") 
+            {
+                return BadRequest(new { message = "Lỗi: Chỉ có thể hủy đơn đang ở trạng thái Pending." });
+            }
+
+            leave.Status = "Cancelled";
+
+            var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeId);
+            if (leaveType != null && leaveType.MaxDaysPerYear != null)
+            {
+                var balance = await _context.LeaveBalances
+                    .FirstOrDefaultAsync(b => b.UserId == userId 
+                                           && b.LeaveTypeId == leave.LeaveTypeId 
+                                           && b.Year == leave.FromDate.Year);
+
+                if (balance != null)
+                {
+                    // Lấy giá trị an toàn từ SQL
+                    decimal daysToRefund = leave.TotalDays ?? 0m;
+                    
+                    // Xử lý toán học trên biến bình thường để tránh lỗi Nullable
+                    decimal newUsed = (balance.UsedDays ?? 0m) - daysToRefund;
+                    balance.UsedDays = newUsed < 0 ? 0m : newUsed;
+                }
+            }
+
+            var approvals = await _context.Approvals
+                .Where(a => a.RequestId == id && a.RequestType == "Leave")
+                .ToListAsync();
+
+            foreach (var approval in approvals)
+            {
+                approval.Status = "Cancelled";
+                approval.ActionDate = DateTime.Now;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Hủy đơn xin nghỉ thành công!" });
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> UpdateLeave(long id, [FromBody] CreateLeaveDto request)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var leave = await _context.LeaveRequests.FindAsync(id);
+
+            if (leave == null || leave.UserId != userId) return NotFound();
+            if (leave.Status != "Pending")
+            {
+                return BadRequest(new { message = "Lỗi: Chỉ có thể sửa đơn đang ở trạng thái Pending." });
+            }
+
+            // request.TotalDays là decimal, không cần ??
+            decimal newSafeTotalDays = request.TotalDays;
+            if (newSafeTotalDays <= 0)
+            {
+                newSafeTotalDays = (request.ToDate.DayNumber - request.FromDate.DayNumber) + 1m;
+            }
+
+            var oldLeaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeId);
+            var newLeaveType = await _context.LeaveTypes.FindAsync(request.LeaveTypeId);
+
+            var oldBalance = await _context.LeaveBalances.FirstOrDefaultAsync(b => b.UserId == userId && b.LeaveTypeId == leave.LeaveTypeId && b.Year == leave.FromDate.Year);
+            var newBalance = await _context.LeaveBalances.FirstOrDefaultAsync(b => b.UserId == userId && b.LeaveTypeId == request.LeaveTypeId && b.Year == request.FromDate.Year);
+
+            if (newLeaveType != null && newLeaveType.MaxDaysPerYear != null)
+            {
+                if (newBalance == null) return BadRequest(new { message = "Không tìm thấy dữ liệu quỹ phép mới." });
+
+                decimal oldLeaveDays = leave.TotalDays ?? 0m;
+                decimal currentNewUsed = newBalance.UsedDays ?? 0m;
+                
+                decimal availableDays = newBalance.TotalDays - currentNewUsed;
+
+                if (leave.LeaveTypeId == request.LeaveTypeId) 
+                {
+                    availableDays += oldLeaveDays; 
+                }
+
+                if (availableDays < newSafeTotalDays)
+                {
+                    return BadRequest(new { message = $"Lỗi: Bạn không đủ quỹ phép cho thay đổi này. Tối đa có thể xin: {availableDays} ngày." });
+                }
+
+                if (oldBalance != null && oldLeaveType?.MaxDaysPerYear != null)
+                {
+                    decimal newUsed = (oldBalance.UsedDays ?? 0m) - oldLeaveDays;
+                    oldBalance.UsedDays = newUsed < 0 ? 0m : newUsed;
+                }
+
+                newBalance.UsedDays = (newBalance.UsedDays ?? 0m) + newSafeTotalDays;
+            }
+            else if (oldLeaveType != null && oldLeaveType.MaxDaysPerYear != null)
+            {
+                if (oldBalance != null)
+                {
+                    decimal oldLeaveDays = leave.TotalDays ?? 0m;
+                    decimal newUsed = (oldBalance.UsedDays ?? 0m) - oldLeaveDays;
+                    oldBalance.UsedDays = newUsed < 0 ? 0m : newUsed;
+                }
+            }
+
+            leave.LeaveTypeId = request.LeaveTypeId;
+            leave.FromDate = request.FromDate;
+            leave.ToDate = request.ToDate;
+            leave.TotalDays = newSafeTotalDays;
+            leave.Reason = request.Reason;
+            
+            var oldApprovals = await _context.Approvals.Where(a => a.RequestId == id && a.RequestType == "Leave").ToListAsync();
+            _context.Approvals.RemoveRange(oldApprovals);
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user?.ManagerId != null)
+            {
+                _context.Approvals.Add(new Approval
+                {
+                    RequestId = leave.Id,
+                    RequestType = "Leave",
+                    ApprovalLevel = 1,
+                    ApproverId = (int)user.ManagerId,
+                    Status = "Pending"
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật đơn xin nghỉ thành công!" });
+        }
+        /* =====================================================
+           MANAGER LEAVE CONTROLLER STATS
+        ===================================================== */
+        [HttpGet("manager-stats")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> GetManagerStats()
+        {
+            var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            var pendingLeave = await _context.LeaveRequests
+                .Include(l => l.User)
+                .CountAsync(l => l.Status == "Pending" && l.CurrentApprovalLevel == 1 && l.User.ManagerId == managerId);
+
+            var pendingOt = await _context.Otrequests
+                .Include(o => o.User)
+                .CountAsync(o => o.Status == "Pending" && o.CurrentApprovalLevel == 1 && o.User.ManagerId == managerId);
+
+            var teamMembers = await _context.Users
+                .CountAsync(u => u.ManagerId == managerId && u.IsActive == true);
+
+            return Ok(new
+            {
+                pendingLeave = pendingLeave,
+                pendingOt = pendingOt,
+                teamMembers = teamMembers
+            });
+        }
+        
+        /* =====================================================
+           MANAGER LEAVE CONTROLLER
+        ===================================================== */
+        [HttpPut("manager-approve/{id}")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> ManagerApprove(long id)
+        {
+            var leave = await _context.LeaveRequests.FindAsync(id);
+            if (leave == null) return NotFound();
+
+            leave.Status = "Pending";
+            leave.CurrentApprovalLevel = 2;
+
+            var approval = await _context.Approvals
+                .FirstOrDefaultAsync(a => a.RequestId == id && a.ApprovalLevel == 1 && a.RequestType == "Leave");
+
+            if (approval != null)
+            {
+                approval.Status = "Approved";
+            }
+
+            var hrUsers = await _context.Users
+                .Include(u => u.Role)
+                .Where(u => u.Role.Name == "HR")
+                .ToListAsync();
+
+            foreach (var hr in hrUsers)
+            {
+                _context.Approvals.Add(new Approval
+                {
+                    RequestId = leave.Id,
+                    RequestType = "Leave",
+                    ApprovalLevel = 2,
+                    ApproverId = hr.Id,
+                    Status = "Pending"
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        /* =====================================================
+           MANAGER REJECT
+        ===================================================== */
+        [HttpPut("manager-reject/{id}")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> ManagerReject(long id, [FromBody] RejectDto dto)
+        {
+            var leave = await _context.LeaveRequests.FindAsync(id);
+            if (leave == null) return NotFound();
+
+            if (leave.Status == "Rejected") return BadRequest(new { message = "Đơn này đã bị từ chối rồi!" });
+
+            leave.Status = "Rejected";
+            leave.Reason = leave.Reason + " | Rejected by Manager: " + dto.Reason;
+
+            var approval = await _context.Approvals
+                .FirstOrDefaultAsync(a => a.RequestId == id && a.ApprovalLevel == 1 && a.RequestType == "Leave");
+
+            if (approval != null) approval.Status = "Rejected";
+
+            // ✅ HOÀN TRẢ LẠI NGÀY PHÉP (REFUND)
+            var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeId);
+            if (leaveType != null && leaveType.MaxDaysPerYear != null)
+            {
+                var balance = await _context.LeaveBalances
+                    .FirstOrDefaultAsync(b => b.UserId == leave.UserId && b.LeaveTypeId == leave.LeaveTypeId && b.Year == leave.FromDate.Year);
+
+                if (balance != null)
+                {
+                    decimal daysToRefund = leave.TotalDays ?? 0m;
+                    if (daysToRefund <= 0) daysToRefund = (leave.ToDate.DayNumber - leave.FromDate.DayNumber) + 1m;
+                    
+                    // Xử lý Nullable bằng biến phụ để tránh lỗi
+                    decimal currentUsed = balance.UsedDays ?? 0m;
+                    decimal newUsed = currentUsed - daysToRefund;
+                    
+                    balance.UsedDays = newUsed < 0 ? 0m : newUsed; // Đảm bảo không bị âm
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        /* =====================================================
+           MANAGER GET PENDING
+        ===================================================== */
+        [HttpGet("pending-manager")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> GetPendingForManager()
+        {
+            var managerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            var leaves = await _context.LeaveRequests
+                .Include(l => l.User)
+                .Include(l => l.LeaveType)
+                .Where(l => l.Status == "Pending" && l.CurrentApprovalLevel == 1 && l.User.ManagerId == managerId)
+                .Select(l => new
+                {
+                    Id = l.Id,
+                    EmployeeName = l.User.FullName,
+                    LeaveType = l.LeaveType.Name,
+                    FromDate = l.FromDate,
+                    ToDate = l.ToDate,
+                    TotalDays = l.TotalDays,
+                    Reason = l.Reason,
+                    Status = l.Status
+                })
+                .ToListAsync();
+
+            return Ok(leaves);
+        }
+
         /* =====================================================
            GET MY LEAVE REQUESTS
         ===================================================== */
+
         [HttpGet("my")]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> GetMyLeaves()
@@ -80,7 +365,7 @@ namespace LeaveOTManagement.Controllers
                     ToDate = l.ToDate,
                     TotalDays = l.TotalDays,
                     Reason = l.Reason,
-                    Status = l.Status,
+                    Status = l.Status == "Pending" && l.CurrentApprovalLevel == 2 ? "Pending HR" : l.Status,
                     CreatedAt = l.CreatedAt
                 })
                 .ToListAsync();
@@ -92,11 +377,17 @@ namespace LeaveOTManagement.Controllers
            SUBMIT LEAVE REQUEST
         ===================================================== */
         [HttpPost]
+        [Authorize(Roles = "Employee")]
         public async Task<IActionResult> SubmitLeave([FromBody] CreateLeaveDto request)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-            /* CHECK OVERLAPPING LEAVE */
+            decimal safeTotalDays = request.TotalDays; 
+            if (safeTotalDays <= 0)
+            {
+                safeTotalDays = (request.ToDate.DayNumber - request.FromDate.DayNumber) + 1m;
+            }
+
             var isOverlapping = await _context.LeaveRequests
                 .AnyAsync(r => r.UserId == userId
                             && r.Status != "Rejected"
@@ -106,40 +397,39 @@ namespace LeaveOTManagement.Controllers
 
             if (isOverlapping)
             {
-                return BadRequest(new
-                {
-                    message = "Lỗi: Bạn đã có đơn xin nghỉ khác trùng với khoảng thời gian này!"
-                });
+                return BadRequest(new { message = "Lỗi: Bạn đã có đơn xin nghỉ khác trùng với khoảng thời gian này!" });
             }
 
-            /* CHECK LEAVE BALANCE */
             var leaveType = await _context.LeaveTypes.FindAsync(request.LeaveTypeId);
-
             if (leaveType != null && leaveType.MaxDaysPerYear != null)
             {
                 var balance = await _context.LeaveBalances
-                    .FirstOrDefaultAsync(b =>
-                        b.UserId == userId &&
-                        b.LeaveTypeId == request.LeaveTypeId &&
-                        b.Year == DateTime.Now.Year);
+                    .FirstOrDefaultAsync(b => b.UserId == userId 
+                                           && b.LeaveTypeId == request.LeaveTypeId 
+                                           && b.Year == DateTime.Now.Year);
 
-                if (balance == null || (balance.TotalDays - balance.UsedDays) < request.TotalDays)
+                if (balance == null) return BadRequest(new { message = "Lỗi: Không tìm thấy dữ liệu ngày phép của bạn năm nay!" });
+
+                // Tính toán an toàn tuyệt đối với Nullable
+                decimal currentUsed = balance.UsedDays ?? 0m;
+                decimal availableDays = balance.TotalDays - currentUsed;
+
+                if (availableDays < safeTotalDays)
                 {
-                    return BadRequest(new
-                    {
-                        message = "Lỗi: Số dư phép hiện tại của bạn không đủ!"
-                    });
+                    return BadRequest(new { message = $"Lỗi: Bạn chỉ còn {availableDays} ngày phép. Không thể xin nghỉ {safeTotalDays} ngày!" });
                 }
+
+                // ✅ TRỪ PHÉP NGAY LẬP TỨC
+                balance.UsedDays = currentUsed + safeTotalDays;
             }
 
-            /* CREATE LEAVE REQUEST */
             var newLeave = new LeaveRequest
             {
                 UserId = userId,
                 LeaveTypeId = request.LeaveTypeId,
                 FromDate = request.FromDate,
                 ToDate = request.ToDate,
-                TotalDays = request.TotalDays,
+                TotalDays = safeTotalDays, 
                 Reason = request.Reason,
                 Status = "Pending",
                 CurrentApprovalLevel = 1,
@@ -149,9 +439,7 @@ namespace LeaveOTManagement.Controllers
             _context.LeaveRequests.Add(newLeave);
             await _context.SaveChangesAsync();
 
-            /* CREATE APPROVAL FOR MANAGER */
             var user = await _context.Users.FindAsync(userId);
-
             if (user?.ManagerId != null)
             {
                 var approval = new Approval
@@ -162,15 +450,137 @@ namespace LeaveOTManagement.Controllers
                     ApproverId = (int)user.ManagerId,
                     Status = "Pending"
                 };
-
                 _context.Approvals.Add(approval);
                 await _context.SaveChangesAsync();
             }
 
-            return Ok(new
+            return Ok(new { message = "Gửi yêu cầu nghỉ phép thành công!" });
+        }
+
+        /* =====================================================
+           TEAM CALENDAR (MANAGER)
+        ===================================================== */
+
+        [HttpGet("team-calendar")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> GetTeamCalendar(int year, int month)
+        {
+            var managerId = int.Parse(
+                User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0"
+            );
+
+            var data = await _leaveService.GetTeamCalendar(managerId, year, month);
+
+            return Ok(data);
+        }
+
+        /* =====================================================
+           HR APPROVAL ENDPOINTS 
+        ===================================================== */
+        
+        [HttpGet("pending-hr")]
+        [Authorize(Roles = "HR")]
+        public async Task<IActionResult> GetPendingForHR()
+        {
+            var leaves = await _context.LeaveRequests
+                .Include(l => l.User)
+                .Include(l => l.LeaveType)
+                .Where(l => l.Status == "Pending" && l.CurrentApprovalLevel == 2)
+                .Select(l => new
+                {
+                    Id = l.Id,
+                    EmployeeName = l.User.FullName,
+                    LeaveType = l.LeaveType.Name,
+                    FromDate = l.FromDate,
+                    ToDate = l.ToDate,
+                    TotalDays = l.TotalDays,
+                    Reason = l.Reason,
+                    Status = "Pending HR"
+                })
+                .ToListAsync();
+
+            return Ok(leaves);
+        }
+
+        [HttpPut("hr-approve/{id}")]
+        [Authorize(Roles = "HR")]
+        public async Task<IActionResult> HRApprove(long id)
+        {
+            var leave = await _context.LeaveRequests.FindAsync(id);
+            if (leave == null) return NotFound();
+
+            if (leave.Status == "Approved") 
             {
-                message = "Gửi yêu cầu nghỉ phép thành công!"
-            });
+                return BadRequest(new { message = "Đơn này đã được duyệt rồi!" });
+            }
+
+            // ✅ KHÔNG CẦN TRỪ PHÉP Ở ĐÂY NỮA VÌ ĐÃ TRỪ TỪ LÚC TẠO ĐƠN
+            leave.Status = "Approved";
+
+            var hrId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var approval = await _context.Approvals
+                .FirstOrDefaultAsync(a => a.RequestId == id 
+                                       && a.ApprovalLevel == 2 
+                                       && a.RequestType == "Leave" 
+                                       && a.ApproverId == hrId);
+
+            if (approval != null)
+            {
+                approval.Status = "Approved";
+                approval.ActionDate = DateTime.Now;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        /* =====================================================
+           HR REJECT
+        ===================================================== */
+        [HttpPut("hr-reject/{id}")]
+        [Authorize(Roles = "HR")]
+        public async Task<IActionResult> HRReject(long id, [FromBody] RejectDto dto)
+        {
+            var leave = await _context.LeaveRequests.FindAsync(id);
+            if (leave == null) return NotFound();
+
+            if (leave.Status == "Rejected") return BadRequest(new { message = "Đơn này đã bị từ chối rồi!" });
+
+            leave.Status = "Rejected";
+            leave.Reason = leave.Reason + " | Rejected by HR: " + dto.Reason;
+
+            var hrId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var approval = await _context.Approvals
+                .FirstOrDefaultAsync(a => a.RequestId == id && a.ApprovalLevel == 2 && a.RequestType == "Leave" && a.ApproverId == hrId);
+
+            if (approval != null)
+            {
+                approval.Status = "Rejected";
+                approval.ActionDate = DateTime.Now;
+            }
+
+            // ✅ HOÀN TRẢ LẠI NGÀY PHÉP (REFUND)
+            var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeId);
+            if (leaveType != null && leaveType.MaxDaysPerYear != null)
+            {
+                var balance = await _context.LeaveBalances
+                    .FirstOrDefaultAsync(b => b.UserId == leave.UserId && b.LeaveTypeId == leave.LeaveTypeId && b.Year == leave.FromDate.Year);
+
+                if (balance != null)
+                {
+                    decimal daysToRefund = leave.TotalDays ?? 0m;
+                    if (daysToRefund <= 0) daysToRefund = (leave.ToDate.DayNumber - leave.FromDate.DayNumber) + 1m;
+                    
+                    // Xử lý Nullable bằng biến phụ để tránh lỗi
+                    decimal currentUsed = balance.UsedDays ?? 0m;
+                    decimal newUsed = currentUsed - daysToRefund;
+                    
+                    balance.UsedDays = newUsed < 0 ? 0m : newUsed; // Đảm bảo không bị âm
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok();
         }
     }
 }

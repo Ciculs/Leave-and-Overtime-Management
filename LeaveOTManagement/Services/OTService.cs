@@ -1,4 +1,5 @@
-﻿using LeaveOTManagement.Data;
+
+using LeaveOTManagement.Data;
 using LeaveOTManagement.DTOs.OT;
 using LeaveOTManagement.Models.Entities;
 using LeaveOTManagement.Services.Interfaces;
@@ -41,6 +42,11 @@ namespace LeaveOTManagement.Services
                 {
                     if (d.ToTime <= d.FromTime)
                         throw new Exception("Invalid time range");
+
+                    var start = d.WorkDate.Date + d.FromTime;
+
+                    if (start < DateTime.Now)
+                        throw new Exception("Cannot create OT in the past");
 
                     var hours = (decimal)(d.ToTime - d.FromTime).TotalHours;
 
@@ -141,6 +147,7 @@ namespace LeaveOTManagement.Services
                     Reason = x.Reason,
                     Status = x.Status,
                     CreatedAt = x.CreatedAt ?? DateTime.MinValue,
+
                     Details = x.Otdetails.Select(d => new OtDetailDto
                     {
                         WorkDate = d.WorkDate,
@@ -177,6 +184,194 @@ namespace LeaveOTManagement.Services
                         Status = "Pending"
                     });
                 }
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<OtResponseDto?> GetOtByIdAsync(long id, int userId)
+        {
+            var ot = await _context.Otrequests
+                .Include(x => x.Otdetails)
+                .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+
+            if (ot == null)
+                return null;
+
+            return new OtResponseDto
+            {
+                Id = ot.Id,
+                Reason = ot.Reason ?? "",
+                Status = ot.Status ?? "",
+                CreatedAt = ot.CreatedAt ?? DateTime.MinValue,
+
+                Details = ot.Otdetails.Select(d => new OtDetailDto
+                {
+                    WorkDate = d.WorkDate,
+                    FromTime = d.FromTime,
+                    ToTime = d.ToTime,
+                    Hours = d.Hours
+                }).ToList()
+            };
+        }
+
+        public async Task<List<OtResponseDto>> GetPendingApprovalsAsync(int approverId)
+        {
+            var userApprovals = await _context.Approvals
+                .Where(a => a.ApproverId == approverId && a.RequestType == "OT")
+                .ToListAsync();
+
+            if (!userApprovals.Any())
+                return new List<OtResponseDto>();
+
+            var requestIds = userApprovals.Select(a => a.RequestId).Distinct().ToList();
+
+            var requests = await _context.Otrequests
+                .Include(x => x.Otdetails)
+                .Include(x => x.User)
+                .Where(x => requestIds.Contains(x.Id))
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            return requests.Select(x => {
+                var myApproval = userApprovals.First(a => a.RequestId == x.Id);
+                return new OtResponseDto
+                {
+                    Id = x.Id,
+                    Reason = x.Reason ?? "",
+                    Status = x.Status ?? "",
+                    CreatedAt = x.CreatedAt ?? DateTime.MinValue,
+                    EmployeeName = x.User?.FullName ?? "Unknown",
+                    UserApprovalStatus = myApproval.Status ?? "Pending",
+                    CurrentApprovalLevel = x.CurrentApprovalLevel ?? 1,
+                    Details = x.Otdetails.Select(d => new OtDetailDto
+                    {
+                        WorkDate = d.WorkDate,
+                        FromTime = d.FromTime,
+                        ToTime = d.ToTime,
+                        Hours = d.Hours
+                    }).ToList()
+                };
+            })
+            // Lọc để hiển thị:
+            // - Yêu cầu đang chờ ở đúng cấp độ (CurrentApprovalLevel == myLevel)
+            // - Hoặc bất kỳ yêu cầu nào mà bản thân mình ĐÃ xử lý rồi (Status != Pending) -> Để xem lịch sử
+            .Where(dto => {
+                var myLevel = userApprovals.First(a => a.RequestId == dto.Id).ApprovalLevel;
+                return dto.CurrentApprovalLevel == myLevel || dto.UserApprovalStatus != "Pending";
+            })
+            .ToList();
+        }
+
+        public async Task ManagerApproveOtAsync(long requestId, int approverId)
+        {
+            var approval = await _context.Approvals.FirstOrDefaultAsync(a =>
+                a.RequestId == requestId &&
+                a.RequestType == "OT" &&
+                a.ApproverId == approverId &&
+                a.Status == "Pending");
+
+            if (approval == null)
+                throw new Exception("Approval not found");
+
+            var ot = await _context.Otrequests.FindAsync(requestId);
+
+            if (ot == null)
+                throw new Exception("OT request not found");
+
+            if (ot.CurrentApprovalLevel != 1)
+                throw new Exception("Manager approval already processed");
+
+            // Manager phê duyệt
+            approval.Status = "Approved";
+            approval.ActionDate = DateTime.Now;
+
+            // Chuyển cấp độ sang HR (Level 2)
+            ot.CurrentApprovalLevel = 2;
+            ot.Status = "ManagerApproved";
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task HrApproveOtAsync(long requestId, int approverId)
+        {
+            var approval = await _context.Approvals.FirstOrDefaultAsync(a =>
+                a.RequestId == requestId &&
+                a.RequestType == "OT" &&
+                a.ApproverId == approverId &&
+                a.Status == "Pending");
+
+            if (approval == null)
+                throw new Exception("Approval not found");
+
+            var ot = await _context.Otrequests
+                .Include(x => x.Otdetails)
+                .FirstOrDefaultAsync(x => x.Id == requestId);
+
+            if (ot == null)
+                throw new Exception("OT request not found");
+
+            if (ot.CurrentApprovalLevel != 2)
+                throw new Exception("Manager must approve first");
+
+            approval.Status = "Approved";
+            approval.ActionDate = DateTime.Now;
+
+            // HR PHÊ DUYỆT CUỐI CÙNG
+            ot.CurrentApprovalLevel = 2; // Giữ ở mức cao nhất
+            ot.Status = "Approved";
+
+            await _context.SaveChangesAsync();
+
+            await AddToPayroll(ot);
+        }
+
+        public async Task RejectOtAsync(long requestId, int approverId, string reason)
+        {
+            var approval = await _context.Approvals.FirstOrDefaultAsync(a =>
+                a.RequestId == requestId &&
+                a.RequestType == "OT" &&
+                a.ApproverId == approverId &&
+                a.Status == "Pending");
+
+            if (approval == null)
+                throw new Exception("Approval not found");
+
+            var ot = await _context.Otrequests.FindAsync(requestId);
+
+            if (ot == null)
+                throw new Exception("OT request not found");
+
+            // Reject record
+            approval.Status = "Rejected";
+            approval.Comment = reason;
+            approval.ActionDate = DateTime.Now;
+
+            // Stop workflow
+            ot.Status = "Rejected";
+            ot.CurrentApprovalLevel = -1;
+
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task AddToPayroll(Otrequest ot)
+        {
+            if (ot.Otdetails == null || !ot.Otdetails.Any())
+                return;
+
+            foreach (var d in ot.Otdetails)
+            {
+                var payroll = new PayrollLog
+                {
+                    UserId = ot.UserId,
+                    OTRequestId = ot.Id,
+                    WorkDate = d.WorkDate.ToDateTime(TimeOnly.MinValue),
+                    Hours = d.Hours,
+                    RateMultiplier = 1.5m,
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.PayrollLogs.Add(payroll);
             }
 
             await _context.SaveChangesAsync();
