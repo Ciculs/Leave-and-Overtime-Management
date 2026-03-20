@@ -24,6 +24,7 @@ import AssignManager from "../views/AssignManager.vue"
 const routes = [
   {
     path: "/login",
+    name: "Login",
     component: Login
   },
 
@@ -31,111 +32,143 @@ const routes = [
     path: "/",
     component: DashboardLayout,
     meta: { requiresAuth: true },
-
     children: [
-      // ================= ADMIN =================
       {
-        path: "admin",
-        component: DashboardAdmin,
-        meta: { role: "Admin" }
+        path: "",
+        redirect: () => {
+          const role = localStorage.getItem("role")
+
+          if (role === "Admin" || role === "HR") return "/hr-admin"
+          if (role === "Manager") return "/manager"
+          if (role === "Employee") return "/employee"
+
+          return "/login"
+        }
       },
 
-      // ================= HR (USER MANAGEMENT) =================
+      // ================= ADMIN / HR =================
+      {
+        path: "hr-admin",
+        name: "DashboardHRAdmin",
+        component: DashboardAdmin,
+        meta: { roles: ["Admin", "HR"] }
+      },
+
+      // ================= HR USER MANAGEMENT =================
       {
         path: "create-user",
+        name: "CreateUser",
         component: CreateUser,
-        meta: { role: "HR" }
+        meta: { roles: ["Admin", "HR"] }
       },
       {
         path: "assign-manager",
+        name: "AssignManager",
         component: AssignManager,
-        meta: { role: "HR" }
+        meta: { roles: ["Admin", "HR"] }
       },
 
       // ================= MANAGER =================
       {
         path: "manager",
+        name: "DashboardManager",
         component: DashboardManager,
-        meta: { role: "Manager" }
+        meta: { roles: ["Manager"] }
       },
       {
         path: "team-calendar",
+        name: "TeamCalendar",
         component: TeamCalendar,
-        meta: { role: "Manager" }
+        meta: { roles: ["Manager"] }
       },
       {
         path: "team-approvals",
         name: "TeamApprovals",
         component: () => import("../views/ManagerApproval.vue"),
-        meta: { role: "Manager" }
+        meta: { roles: ["Manager"] }
       },
-
-      // 👉 giữ thêm từ AnhNH
       {
         path: "ot-manager-approval",
+        name: "OTManagerApproval",
         component: () => import("../views/OTManagerApproval.vue"),
-        meta: { role: "Manager" }
+        meta: { roles: ["Manager"] }
       },
 
       // ================= EMPLOYEE =================
       {
         path: "employee",
+        name: "DashboardEmployee",
         component: DashboardEmployee,
-        meta: { role: "Employee" }
+        meta: { roles: ["Employee"] }
       },
       {
         path: "leave/new",
+        name: "LeaveRequest",
         component: LeaveRequest,
-        meta: { role: "Employee" }
+        meta: { roles: ["Employee"] }
       },
       {
         path: "my-leaves",
+        name: "MyLeaves",
         component: LeaveTable,
-        meta: { role: "Employee" }
+        meta: { roles: ["Employee"] }
       },
       {
         path: "my-ot",
+        name: "MyOT",
         component: OTList,
-        meta: { role: "Employee" }
+        meta: { roles: ["Employee"] }
       },
       {
         path: "ot/edit/:id",
+        name: "OTEdit",
         component: OTEdit,
-        meta: { role: "Employee" }
+        meta: { roles: ["Employee"] }
       },
       {
         path: "personal-calendar",
+        name: "PersonalCalendar",
         component: PersonalCalendar,
-        meta: { role: "Employee" }
+        meta: { roles: ["Employee"] }
       },
 
-      // ================= HR =================
+      // ================= HR / ADMIN =================
       {
         path: "holidays",
+        name: "HolidayList",
         component: HolidayList,
-        meta: { role: "HR" }
+        meta: { roles: ["Admin", "HR"] }
       },
       {
         path: "reports",
+        name: "Reports",
         component: Reports,
-        meta: { role: "HR" }
+        meta: { roles: ["Admin", "HR"] }
       },
       {
         path: "hr-approvals",
         name: "HRApprovals",
         component: () => import("../views/HRApproval.vue"),
-        meta: { role: "HR" }
+        meta: { roles: ["Admin", "HR"] }
       },
       {
         path: "ot-hr-approval",
+        name: "OTHRApproval",
         component: () => import("../views/OTHRApproval.vue"),
-        meta: { role: "HR" }
+        meta: { roles: ["Admin", "HR"] }
       },
       {
-        path: "/report-dashboard",
-        component: () => import("../views/ReportDashboard.vue")
+        path: "report-dashboard",
+        name: "ReportDashboard",
+        component: () => import("../views/ReportDashboard.vue"),
+        meta: { roles: ["Admin", "HR"] }
       }
     ]
+  },
+
+  {
+    path: "/:pathMatch(.*)*",
+    redirect: "/login"
   }
 ]
 
@@ -155,17 +188,22 @@ router.beforeEach((to) => {
   }
 
   if (to.path === "/login" && token) {
-    if (role === "Admin") return "/admin"
+    if (role === "Admin" || role === "HR") return "/hr-admin"
     if (role === "Manager") return "/manager"
     if (role === "Employee") return "/employee"
-    if (role === "HR") return "/holidays"
-  }
-
-  const requiredRole = to.matched.find(r => r.meta.role)?.meta.role
-
-  if (requiredRole && requiredRole !== role) {
     return "/login"
   }
+
+  const requiredRoles = to.matched.find(record => record.meta.roles)?.meta.roles
+
+  if (requiredRoles && !requiredRoles.includes(role)) {
+    if (role === "Admin" || role === "HR") return "/hr-admin"
+    if (role === "Manager") return "/manager"
+    if (role === "Employee") return "/employee"
+    return "/login"
+  }
+
+  return true
 })
 
 export default router

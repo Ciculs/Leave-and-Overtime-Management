@@ -1,246 +1,328 @@
 <template>
   <div class="dashboard">
+    <!-- HR ADMIN DASHBOARD -->
+    <div class="dashboard-section">
+      <div class="section-header">
+        <h2>HR Admin Dashboard</h2>
+      </div>
 
-    <!-- HEADER -->
-    <div class="header">
-      <h1>Admin Dashboard</h1>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>Pending Leave Approval</h3>
+          <p>{{ stats.pendingLeave }}</p>
+        </div>
 
-      <div class="actions">
-        <button class="create-btn" @click="goCreateUser">
-          + Create User
-        </button>
+        <div class="stat-card">
+          <h3>Pending OT Approval</h3>
+          <p>{{ stats.pendingOt }}</p>
+        </div>
 
-        <button class="assign-btn" @click="goAssignManager">
-          Assign Manager
-        </button>
+        <div class="stat-card">
+          <h3>Total Pending Requests</h3>
+          <p>{{ totalPending }}</p>
+        </div>
+
+        <div class="stat-card">
+          <h3>Total Users</h3>
+          <p>{{ stats.totalUsers }}</p>
+        </div>
       </div>
     </div>
 
-    <!-- SEARCH -->
-    <div class="search-bar">
-      <input v-model="search" placeholder="Search by name..." />
+    <!-- MANAGEMENT MODULES -->
+    <div class="dashboard-section">
+      <h2>Management Modules</h2>
 
-      <select v-model="role">
-        <option value="">All Roles</option>
-        <option>Admin</option>
-        <option>Manager</option>
-        <option>Employee</option>
-      </select>
+      <div class="modules-grid">
+        <div class="module-card" @click="goToCreateUser">
+          <div class="module-icon">👤</div>
+          <div class="module-content">
+            <h3>User Management</h3>
+            <p>Create new users and maintain employee access.</p>
+          </div>
+        </div>
 
-      <button @click="loadUsers">Search</button>
+        <div class="module-card" @click="goToAssignManager">
+          <div class="module-icon">🧩</div>
+          <div class="module-content">
+            <h3>Manager Assignment</h3>
+            <p>Assign or update reporting managers for employees.</p>
+          </div>
+        </div>
+
+        <div class="module-card" @click="goToLeaveApprovals">
+          <div class="module-icon">✅</div>
+          <div class="module-content">
+            <h3>Leave Approval Center</h3>
+            <p>Review and process leave requests waiting for HR/Admin approval.</p>
+          </div>
+        </div>
+
+        <div class="module-card" @click="goToOTApprovals">
+          <div class="module-icon">⏱️</div>
+          <div class="module-content">
+            <h3>OT Approval Center</h3>
+            <p>Review and process overtime requests across the company.</p>
+          </div>
+        </div>
+
+        <div class="module-card" @click="goToHolidayCalendar">
+          <div class="module-icon">📅</div>
+          <div class="module-content">
+            <h3>Holiday Calendar</h3>
+            <p>Maintain public holidays and calendar configuration.</p>
+          </div>
+        </div>
+
+        <div class="module-card" @click="goToReports">
+          <div class="module-icon">📈</div>
+          <div class="module-content">
+            <h3>Reports & Analytics</h3>
+            <p>Track leave and overtime trends through reporting dashboards.</p>
+          </div>
+        </div>
+
+        <div class="module-card" @click="goToReportDashboard">
+          <div class="module-icon">📑</div>
+          <div class="module-content">
+            <h3>Report Dashboard</h3>
+            <p>Open the detailed reporting dashboard for HR/Admin.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- USER TABLE -->
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Department</th>
-            <th>Role</th>
-            <th>Manager</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+    <!-- TODAY SUMMARY -->
+    <div class="dashboard-section">
+      <h2>Today Summary</h2>
 
-        <tbody>
-          <tr v-for="u in users" :key="u.id">
-            <td>{{ u.employeeCode }}</td>
-            <td>{{ u.fullName }}</td>
-            <td>{{ u.email }}</td>
-            <td>{{ u.department }}</td>
-            <td>{{ u.role }}</td>
-            <td>{{ u.manager || "-" }}</td>
+      <div class="summary-list">
+        <div class="summary-item">
+          <span class="summary-label">Leave approvals waiting</span>
+          <span class="summary-value">{{ stats.pendingLeave }}</span>
+        </div>
 
-            <td>
-              <span v-if="u.isActive" class="active">Active</span>
-              <span v-else class="inactive">Inactive</span>
-            </td>
+        <div class="summary-item">
+          <span class="summary-label">OT approvals waiting</span>
+          <span class="summary-value">{{ stats.pendingOt }}</span>
+        </div>
 
-            <td>
-              <button class="edit-btn" @click="handleEdit(u)">Edit</button>
-              <button 
-                class="deactivate-btn" 
-                @click="handleDeactivate(u.id)"
-                v-if="u.isActive"
-              >
-                Deactivate
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <div class="summary-item">
+          <span class="summary-label">Total requests waiting</span>
+          <span class="summary-value">{{ totalPending }}</span>
+        </div>
+
+        <div class="summary-item">
+          <span class="summary-label">Total users</span>
+          <span class="summary-value">{{ stats.totalUsers }}</span>
+        </div>
+      </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { useRouter } from "vue-router"
-import axios from "../services/axios"
+import api from "@/services/api"
 
 const router = useRouter()
 
-const users = ref([])
-const search = ref("")
-const role = ref("")
+const stats = ref({
+  pendingLeave: 0,
+  pendingOt: 0,
+  totalUsers: 0,
+  totalDepartments: 0
+})
 
-// ================= LOAD USERS =================
-const loadUsers = async () => {
-  const res = await axios.get("/users", {
-    params: {
-      search: search.value,
-      role: role.value
-    }
-  })
-  users.value = res.data
+const totalPending = computed(() => {
+  return (stats.value.pendingLeave || 0) + (stats.value.pendingOt || 0)
+})
+
+const loadStats = async () => {
+  try {
+    const [leaveRes, otRes, usersRes, deptRes] = await Promise.all([
+      api.get("/Leave/pending-hr"),
+      api.get("/OT/hr-pending"),
+      api.get("/Users"),
+      api.get("/Users/departments")
+    ])
+
+    const leaves = leaveRes.data || []
+    const ots = otRes.data || []
+    const users = usersRes.data || []
+    const departments = deptRes.data || []
+
+    stats.value.pendingLeave = leaves.length
+    stats.value.pendingOt = ots.filter(x => x.status === "Pending").length
+    stats.value.totalUsers = users.length
+    stats.value.totalDepartments = departments.length
+  } catch (error) {
+    console.error("Admin dashboard load error:", error)
+  }
 }
 
-// ================= DEACTIVATE =================
-const handleDeactivate = async (id) => {
-  if (!confirm("Are you sure to deactivate this user?")) return
+onMounted(loadStats)
 
-  await axios.put(`/users/${id}/deactivate`)
-  loadUsers()
+const goToLeaveApprovals = () => {
+  router.push("/hr-approvals")
 }
 
-// ================= EDIT =================
-const handleEdit = async (user) => {
-  const name = prompt("New name", user.fullName)
-  if (!name) return
-
-  await axios.put(`/users/${user.id}`, {
-    fullName: name,
-    roleId: 1,        // tạm hardcode (có thể nâng cấp sau)
-    departmentId: 1
-  })
-
-  loadUsers()
+const goToOTApprovals = () => {
+  router.push("/ot-hr-approval")
 }
 
-// ================= NAVIGATION =================
-const goCreateUser = () => {
+const goToHolidayCalendar = () => {
+  router.push("/holidays")
+}
+
+const goToReports = () => {
+  router.push("/reports")
+}
+
+const goToReportDashboard = () => {
+  router.push("/report-dashboard")
+}
+
+const goToCreateUser = () => {
   router.push("/create-user")
 }
 
-const goAssignManager = () => {
+const goToAssignManager = () => {
   router.push("/assign-manager")
 }
-
-onMounted(loadUsers)
 </script>
 
 <style scoped>
-
 .dashboard {
+  background: #f4f7fb;
+}
+
+.dashboard-section {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  background: #f8f9fc;
+  border-radius: 12px;
   padding: 20px;
 }
 
-/* header */
-.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:25px;
+.stat-card h3 {
+  font-size: 14px;
+  color: #666;
 }
 
-.actions{
-  display:flex;
-  gap:12px;
+.stat-card p {
+  font-size: 26px;
+  font-weight: 700;
+  color: #4318ff;
+  margin-top: 10px;
 }
 
-/* buttons */
-.create-btn{
-  background:#4CAF50;
-  color:white;
-  border:none;
-  padding:10px 18px;
-  border-radius:6px;
-  cursor:pointer;
+/* MODULES */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 18px;
 }
 
-.assign-btn{
-  background:#2196F3;
-  color:white;
-  border:none;
-  padding:10px 18px;
-  border-radius:6px;
-  cursor:pointer;
+.module-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: #f8f9fc;
+  border-radius: 14px;
+  padding: 20px;
+  cursor: pointer;
+  transition: 0.25s;
+  border: 1px solid transparent;
 }
 
-/* SEARCH */
-.search-bar{
-  display:flex;
-  gap:10px;
-  margin-bottom:20px;
+.module-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(67, 24, 255, 0.15);
+  box-shadow: 0 10px 20px rgba(67, 24, 255, 0.08);
 }
 
-.search-bar input,
-.search-bar select{
-  padding:8px;
-  border-radius:6px;
-  border:1px solid #ccc;
+.module-icon {
+  font-size: 26px;
+  line-height: 1;
 }
 
-.search-bar button{
-  padding:8px 14px;
-  background:#333;
-  color:white;
-  border:none;
-  border-radius:6px;
+.module-content h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #2b3674;
 }
 
-/* TABLE */
-.table-container{
-  background:white;
-  padding:15px;
-  border-radius:10px;
-  box-shadow:0 3px 10px rgba(0,0,0,0.1);
+.module-content p {
+  margin: 0;
+  color: #707eae;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-table{
-  width:100%;
-  border-collapse:collapse;
+/* SUMMARY */
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
 }
 
-th, td{
-  padding:10px;
-  text-align:left;
-  border-bottom:1px solid #eee;
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8f9fc;
+  border-radius: 12px;
+  padding: 16px 18px;
 }
 
-/* status */
-.active{
-  color:green;
-  font-weight:600;
+.summary-label {
+  color: #2b3674;
+  font-weight: 600;
 }
 
-.inactive{
-  color:red;
-  font-weight:600;
+.summary-value {
+  color: #4318ff;
+  font-weight: 700;
+  font-size: 18px;
 }
 
-/* action buttons */
-.edit-btn{
-  background:#ffc107;
-  border:none;
-  padding:6px 10px;
-  margin-right:5px;
-  border-radius:5px;
-  cursor:pointer;
-}
+/* MOBILE */
+@media (max-width: 768px) {
+  .dashboard-section {
+    padding: 18px;
+  }
 
-.deactivate-btn{
-  background:#f44336;
-  color:white;
-  border:none;
-  padding:6px 10px;
-  border-radius:5px;
-  cursor:pointer;
-}
+  .modules-grid {
+    grid-template-columns: 1fr;
+  }
 
+  .summary-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
 </style>

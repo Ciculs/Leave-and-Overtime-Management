@@ -1,42 +1,49 @@
 <template>
   <header class="header">
-
-    <!-- LEFT -->
     <div class="header-left">
       <button class="menu-btn" @click="$emit('toggle-sidebar')">☰</button>
       <p class="path">Pages / Dashboard</p>
       <h2 class="current">Main Dashboard</h2>
     </div>
 
-    <!-- RIGHT -->
     <div class="header-right">
-
-      <!-- USER -->
       <div class="user-box">
         <div class="avatar">
-          {{ username.charAt(0).toUpperCase() }}
+          {{ displayName.charAt(0).toUpperCase() }}
         </div>
+
         <div class="user-info">
-          <span class="name">{{ username }}</span>
-          <span class="role">{{ role }}</span>
+          <span class="name">{{ displayName }}</span>
+          <span class="role">{{ displayRole }}</span>
         </div>
       </div>
 
-      <!-- LOGOUT -->
       <button class="logout-btn" @click="logout">
         Logout
       </button>
-
     </div>
   </header>
 </template>
 
 <script setup>
+import { computed } from "vue"
 import { useRouter } from "vue-router"
 
 const router = useRouter()
-const username = localStorage.getItem("username") || "User"
-const role = localStorage.getItem("role") || "Employee"
+
+const rawName =
+  localStorage.getItem("fullName") ||
+  localStorage.getItem("username") ||
+  "User"
+
+const rawRole = localStorage.getItem("role") || "Employee"
+
+const displayName = computed(() => rawName)
+
+const displayRole = computed(() => {
+  if (rawRole === "HR" || rawRole === "Admin") return "HR ADMIN"
+  return rawRole
+})
 
 const logout = () => {
   localStorage.clear()
@@ -148,7 +155,6 @@ const logout = () => {
 
 /* MOBILE */
 @media (max-width: 768px) {
-
   .header {
     flex-direction: column;
     align-items: flex-start;
@@ -168,7 +174,7 @@ const logout = () => {
   }
 
   .user-info {
-    display: none; /* Ẩn name + role cho gọn */
+    display: none;
   }
 
   .avatar {
@@ -185,7 +191,6 @@ const logout = () => {
 
 /* SMALL MOBILE */
 @media (max-width: 480px) {
-
   .path {
     font-size: 12px;
   }
