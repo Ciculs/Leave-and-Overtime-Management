@@ -20,7 +20,7 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
-        // GET ALL USERS + SEARCH (US10 + US13)
+        // GET ALL USERS + SEARCH
         // ===============================
         [HttpGet]
         public async Task<IActionResult> GetUsers(string? search, string? role)
@@ -31,14 +31,15 @@ namespace LeaveOTManagement.Controllers
                 .Include(u => u.Manager)
                 .AsQueryable();
 
-            // 🔍 SEARCH NAME
-            if (!string.IsNullOrEmpty(search))
+            if (!string.IsNullOrWhiteSpace(search))
             {
-                query = query.Where(u => u.FullName.Contains(search));
+                query = query.Where(u =>
+                    u.FullName.Contains(search) ||
+                    u.Email.Contains(search) ||
+                    u.EmployeeCode.Contains(search));
             }
 
-            // 🔍 FILTER ROLE
-            if (!string.IsNullOrEmpty(role))
+            if (!string.IsNullOrWhiteSpace(role))
             {
                 query = query.Where(u => u.Role.Name == role);
             }
@@ -61,7 +62,7 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
-        // UPDATE USER (US11)
+        // UPDATE USER
         // ===============================
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto dto)
@@ -70,15 +71,13 @@ namespace LeaveOTManagement.Controllers
             if (user == null)
                 return NotFound("User not found");
 
-            // ✅ CHECK DEPARTMENT
             var department = await _context.Departments.FindAsync(dto.DepartmentId);
             if (department == null)
-                return BadRequest("Department không tồn tại");
+                return BadRequest("Department does not exist");
 
-            // ✅ CHECK ROLE
             var role = await _context.Roles.FindAsync(dto.RoleId);
             if (role == null)
-                return BadRequest("Role không tồn tại");
+                return BadRequest("Role does not exist");
 
             user.FullName = dto.FullName;
             user.RoleId = dto.RoleId;
@@ -90,21 +89,51 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
-        // DEACTIVATE USER (US12)
+        // DEACTIVATE USER
         // ===============================
         [HttpPut("{id}/deactivate")]
         public async Task<IActionResult> DeactivateUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
-
             if (user == null)
                 return NotFound("User not found");
 
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.UserId == id);
+
             user.IsActive = false;
+
+            if (account != null)
+            {
+                account.IsLocked = true;
+            }
 
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "User deactivated successfully" });
+        }
+
+        // ===============================
+        // ACTIVATE USER
+        // ===============================
+        [HttpPut("{id}/activate")]
+        public async Task<IActionResult> ActivateUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return NotFound("User not found");
+
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.UserId == id);
+
+            user.IsActive = true;
+
+            if (account != null)
+            {
+                account.IsLocked = false;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "User activated successfully" });
         }
 
         // ===============================
@@ -115,11 +144,12 @@ namespace LeaveOTManagement.Controllers
         {
             var managers = await _context.Users
                 .Include(u => u.Role)
-                .Where(u => u.Role.Name == "Manager")
+                .Where(u => u.Role.Name == "Manager" && u.IsActive == true)
                 .Select(u => new
                 {
                     u.Id,
-                    u.FullName
+                    u.FullName,
+                    u.EmployeeCode
                 })
                 .ToListAsync();
 
@@ -161,7 +191,7 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
-        // CREATE USER
+        // CREATE USER + ACCOUNT
         // ===============================
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto dto)
@@ -169,42 +199,96 @@ namespace LeaveOTManagement.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            if (string.IsNullOrWhiteSpace(dto.Username))
+                return BadRequest("Username is required");
+
+            if (string.IsNullOrWhiteSpace(dto.Password))
+                return BadRequest("Password is required");
+
+            var usernameExists = await _context.Accounts
+                .AnyAsync(a => a.Username == dto.Username.Trim());
+
+            if (usernameExists)
+                return BadRequest("Username already exists");
+
+            var department = await _context.Departments.FindAsync(dto.DepartmentId);
+            if (department == null)
+                return BadRequest("Department không tồn tại");
+
+            var role = await _context.Roles.FindAsync(dto.RoleId);
+            if (role == null)
+                return BadRequest("Role không tồn tại");
+
+            if (dto.ManagerId.HasValue)
+            {
+                var managerExists = await _context.Users.AnyAsync(u => u.Id == dto.ManagerId.Value);
+                if (!managerExists)
+                    return BadRequest("Manager không tồn tại");
+            }
+
             var lastUser = await _context.Users
                 .OrderByDescending(u => u.Id)
                 .FirstOrDefaultAsync();
 
             string newCode = "EMP001";
 
-            if (lastUser != null && !string.IsNullOrEmpty(lastUser.EmployeeCode))
+            if (lastUser != null && !string.IsNullOrEmpty(lastUser.EmployeeCode) && lastUser.EmployeeCode.Length >= 6)
             {
                 int number = int.Parse(lastUser.EmployeeCode.Substring(3));
                 newCode = "EMP" + (number + 1).ToString("D3");
             }
 
-            var user = new User
-            {
-                EmployeeCode = newCode,
-                FullName = dto.FullName,
-                Email = dto.Email,
-                DepartmentId = dto.DepartmentId,
-                RoleId = dto.RoleId,
-                ManagerId = dto.ManagerId,
-                IsActive = true,
-                CreatedAt = DateTime.Now
-            };
+            await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return Ok(new
+            try
             {
-                message = "User created successfully",
-                employeeCode = user.EmployeeCode
-            });
+                var user = new User
+                {
+                    EmployeeCode = newCode,
+                    FullName = dto.FullName?.Trim(),
+                    Email = dto.Email?.Trim(),
+                    DepartmentId = dto.DepartmentId,
+                    RoleId = dto.RoleId,
+                    ManagerId = dto.ManagerId,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                var account = new Account
+                {
+                    Username = dto.Username.Trim(),
+                    PasswordHash = dto.Password.Trim(),
+                    UserId = user.Id,
+                    IsLocked = false
+                };
+
+                _context.Accounts.Add(account);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    message = "User created successfully",
+                    employeeCode = user.EmployeeCode
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new
+                {
+                    message = "Create user failed",
+                    error = ex.Message
+                });
+            }
         }
 
         // ===============================
-        // DELETE USER (optional)
+        // DELETE USER
         // ===============================
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -213,6 +297,12 @@ namespace LeaveOTManagement.Controllers
 
             if (user == null)
                 return NotFound();
+
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.UserId == id);
+            if (account != null)
+            {
+                _context.Accounts.Remove(account);
+            }
 
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
@@ -227,14 +317,21 @@ namespace LeaveOTManagement.Controllers
         public async Task<IActionResult> AssignManager(int userId, int managerId)
         {
             var user = await _context.Users.FindAsync(userId);
-
             if (user == null)
                 return NotFound("User not found");
 
-            var manager = await _context.Users.FindAsync(managerId);
+            var manager = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == managerId);
 
             if (manager == null)
                 return NotFound("Manager not found");
+
+            if (manager.Role?.Name != "Manager")
+                return BadRequest("Selected user is not a manager");
+
+            if (userId == managerId)
+                return BadRequest("User cannot assign themselves as manager");
 
             user.ManagerId = managerId;
 

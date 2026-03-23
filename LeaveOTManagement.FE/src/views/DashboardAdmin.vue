@@ -34,11 +34,11 @@
       <h2>Management Modules</h2>
 
       <div class="modules-grid">
-        <div class="module-card" @click="goToCreateUser">
+        <div class="module-card" @click="goToUserManagement">
           <div class="module-icon">👤</div>
           <div class="module-content">
             <h3>User Management</h3>
-            <p>Create new users and maintain employee access.</p>
+            <p>Manage users, update employee access, and create new user accounts.</p>
           </div>
         </div>
 
@@ -184,8 +184,8 @@ const goToReportDashboard = () => {
   router.push("/report-dashboard")
 }
 
-const goToCreateUser = () => {
-  router.push("/create-user")
+const goToUserManagement = () => {
+  router.push("/user-management")
 }
 
 const goToAssignManager = () => {
@@ -237,7 +237,6 @@ const goToAssignManager = () => {
   margin-top: 10px;
 }
 
-/* MODULES */
 .modules-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -281,7 +280,6 @@ const goToAssignManager = () => {
   line-height: 1.5;
 }
 
-/* SUMMARY */
 .summary-list {
   display: flex;
   flex-direction: column;
@@ -309,7 +307,6 @@ const goToAssignManager = () => {
   font-size: 18px;
 }
 
-/* MOBILE */
 @media (max-width: 768px) {
   .dashboard-section {
     padding: 18px;
