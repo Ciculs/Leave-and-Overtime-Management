@@ -57,7 +57,7 @@
         </router-link>
 
         <router-link to="/ot-hr-approval" class="nav-item" active-class="router-link-active">
-          ⏱ <span v-if="!collapsed">OT HR Approval</span>
+          ⏱ <span v-if="!collapsed">OT Approvals</span>
         </router-link>
 
         <router-link to="/reports" class="nav-item" active-class="router-link-active">
@@ -68,8 +68,8 @@
           📑 <span v-if="!collapsed">Report Dashboard</span>
         </router-link>
 
-        <router-link to="/create-user" class="nav-item" active-class="router-link-active">
-          👤 <span v-if="!collapsed">Create User</span>
+        <router-link to="/user-management" class="nav-item" active-class="router-link-active">
+          👤 <span v-if="!collapsed">User Management</span>
         </router-link>
 
         <router-link to="/assign-manager" class="nav-item" active-class="router-link-active">
@@ -103,7 +103,6 @@ const dashboardLink = computed(() => {
   transition: all 0.3s ease;
 }
 
-/* COLLAPSED */
 .sidebar.collapsed {
   width: 90px;
 }
@@ -112,7 +111,6 @@ const dashboardLink = computed(() => {
   justify-content: center;
 }
 
-/* MOBILE HEADER */
 .mobile-header {
   display: none;
   justify-content: space-between;
@@ -127,7 +125,6 @@ const dashboardLink = computed(() => {
   cursor: pointer;
 }
 
-/* Brand */
 .brand {
   display: flex;
   align-items: center;
@@ -148,7 +145,6 @@ const dashboardLink = computed(() => {
   border-radius: 10px;
 }
 
-/* Nav */
 .nav-menu {
   display: flex;
   flex-direction: column;
@@ -177,7 +173,6 @@ const dashboardLink = computed(() => {
   color: white !important;
 }
 
-/* TABLET */
 @media (max-width: 1024px) {
   .sidebar {
     width: 220px;
@@ -185,7 +180,6 @@ const dashboardLink = computed(() => {
   }
 }
 
-/* MOBILE */
 @media (max-width: 768px) {
   .sidebar {
     width: 100%;
