@@ -1,5 +1,6 @@
 <template>
   <aside :class="['sidebar', { collapsed }]">
+
     <div class="mobile-header">
       <div class="brand">
         <div class="logo-box">D</div>
@@ -12,70 +13,49 @@
     </div>
 
     <nav class="nav-menu">
-      <router-link :to="dashboardLink" class="nav-item" active-class="router-link-active">
+
+      <router-link :to="dashboardLink" class="nav-item">
         📊 <span v-if="!collapsed">Dashboard</span>
       </router-link>
 
-      <!-- EMPLOYEE -->
       <template v-if="role === 'Employee'">
-        <router-link to="/my-leaves" class="nav-item" active-class="router-link-active">
+        <router-link to="/my-leaves" class="nav-item">
           📄 <span v-if="!collapsed">My Leave Requests</span>
         </router-link>
 
-        <router-link to="/my-ot" class="nav-item" active-class="router-link-active">
-          ⏱ <span v-if="!collapsed">My OT Requests</span>
-        </router-link>
-
-        <router-link to="/personal-calendar" class="nav-item" active-class="router-link-active">
-          📅 <span v-if="!collapsed">Personal Calendar</span>
+        <router-link to="/my-ot" class="nav-item">
+          ⏱ <span v-if="!collapsed">My OT</span>
         </router-link>
       </template>
 
-      <!-- MANAGER -->
-      <template v-else-if="role === 'Manager'">
-        <router-link to="/team-approvals" class="nav-item" active-class="router-link-active">
-          ✅ <span v-if="!collapsed">Leave Approvals</span>
+      <template v-if="role === 'Manager'">
+        <router-link to="/my-leaves" class="nav-item">
+          📄 <span v-if="!collapsed">My Leave Requests</span>
         </router-link>
 
-        <router-link to="/ot-manager-approval" class="nav-item" active-class="router-link-active">
-          ⏱ <span v-if="!collapsed">OT Approvals</span>
+        <router-link to="/team-approvals" class="nav-item">
+          ✅ <span v-if="!collapsed">Team Approvals</span>
         </router-link>
 
-        <router-link to="/team-calendar" class="nav-item" active-class="router-link-active">
+        <router-link to="/team-calendar" class="nav-item">
           📅 <span v-if="!collapsed">Team Calendar</span>
         </router-link>
       </template>
 
-      <!-- HR ADMIN -->
-      <template v-else-if="role === 'HR' || role === 'Admin'">
-        <router-link to="/hr-approvals" class="nav-item" active-class="router-link-active">
-          ✅ <span v-if="!collapsed">Leave Approvals</span>
+      <template v-if="role === 'HR'">
+        <router-link to="/hr-approvals" class="nav-item">
+          ✅ <span v-if="!collapsed">HR Approvals</span>
         </router-link>
 
-        <router-link to="/holidays" class="nav-item" active-class="router-link-active">
+        <router-link to="/holidays" class="nav-item">
           📅 <span v-if="!collapsed">Holiday Calendar</span>
         </router-link>
 
-        <router-link to="/ot-hr-approval" class="nav-item" active-class="router-link-active">
-          ⏱ <span v-if="!collapsed">OT Approvals</span>
-        </router-link>
-
-        <router-link to="/reports" class="nav-item" active-class="router-link-active">
-          📈 <span v-if="!collapsed">Analytics</span>
-        </router-link>
-
-        <router-link to="/report-dashboard" class="nav-item" active-class="router-link-active">
-          📑 <span v-if="!collapsed">Report Dashboard</span>
-        </router-link>
-
-        <router-link to="/user-management" class="nav-item" active-class="router-link-active">
-          👤 <span v-if="!collapsed">User Management</span>
-        </router-link>
-
-        <router-link to="/assign-manager" class="nav-item" active-class="router-link-active">
-          🧩 <span v-if="!collapsed">Assign Manager</span>
+        <router-link to="/reports" class="nav-item">
+          📈 <span v-if="!collapsed">Reporting</span>
         </router-link>
       </template>
+
     </nav>
   </aside>
 </template>
@@ -87,9 +67,10 @@ const role = localStorage.getItem("role") || ""
 const collapsed = ref(false)
 
 const dashboardLink = computed(() => {
-  if (role === "Admin" || role === "HR") return "/hr-admin"
+  if (role === "Admin") return "/admin"
   if (role === "Manager") return "/manager"
   if (role === "Employee") return "/employee"
+  if (role === "HR") return "/holidays"
   return "/login"
 })
 </script>
@@ -103,6 +84,7 @@ const dashboardLink = computed(() => {
   transition: all 0.3s ease;
 }
 
+/* COLLAPSED */
 .sidebar.collapsed {
   width: 90px;
 }
@@ -111,6 +93,7 @@ const dashboardLink = computed(() => {
   justify-content: center;
 }
 
+/* MOBILE HEADER */
 .mobile-header {
   display: none;
   justify-content: space-between;
@@ -125,6 +108,7 @@ const dashboardLink = computed(() => {
   cursor: pointer;
 }
 
+/* Brand */
 .brand {
   display: flex;
   align-items: center;
@@ -145,6 +129,7 @@ const dashboardLink = computed(() => {
   border-radius: 10px;
 }
 
+/* Nav */
 .nav-menu {
   display: flex;
   flex-direction: column;
@@ -173,6 +158,7 @@ const dashboardLink = computed(() => {
   color: white !important;
 }
 
+/* TABLET */
 @media (max-width: 1024px) {
   .sidebar {
     width: 220px;
@@ -180,7 +166,9 @@ const dashboardLink = computed(() => {
   }
 }
 
+/* MOBILE */
 @media (max-width: 768px) {
+
   .sidebar {
     width: 100%;
     padding: 15px;
