@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OfficeOpenXml;
 using System.Text;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,7 +61,7 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
@@ -122,25 +123,24 @@ builder.Services.AddAuthentication(options =>
     {
         ValidateIssuer = true,
         ValidateAudience = true,
-        ValidateLifetime = true,   // CHECK TOKEN EXPIRE
+        ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ClockSkew = TimeSpan.Zero, // KHÔNG delay thêm thời gian
+        ClockSkew = TimeSpan.Zero,
 
         ValidIssuer = jwtSection["Issuer"],
         ValidAudience = jwtSection["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(key)
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        RoleClaimType = ClaimTypes.Role,
+        NameClaimType = ClaimTypes.Name
     };
 
-    // ===============================
-    // HANDLE TOKEN EXPIRED
-    // ===============================
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
         {
             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
             {
-                context.Response.Headers.Add("Token-Expired", "true");
+                context.Response.Headers.Append("Token-Expired", "true");
             }
             return Task.CompletedTask;
         },

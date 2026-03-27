@@ -287,7 +287,6 @@ public partial class LeaveOTContext : DbContext
 
             entity.Property(e => e.Hours).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.RateMultiplier).HasColumnType("decimal(3, 2)");
-            entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
 
             entity.HasOne(d => d.User).WithMany()
                 .HasForeignKey(d => d.UserId)

@@ -4,7 +4,6 @@
             <div class="page-header">
                 <div>
                     <h1>User Management</h1>
-                    <p>Manage employee accounts, role assignment, and account status.</p>
                 </div>
 
                 <div class="header-actions">

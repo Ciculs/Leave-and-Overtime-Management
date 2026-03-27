@@ -2,12 +2,15 @@
   <header class="header">
     <div class="header-left">
       <button class="menu-btn" @click="$emit('toggle-sidebar')">☰</button>
-      <p class="path">Pages / Dashboard</p>
-      <h2 class="current">Main Dashboard</h2>
+
+      <div>
+        <p class="path">{{ pageSection }}</p>
+        <h2 class="current">{{ pageTitle }}</h2>
+      </div>
     </div>
 
     <div class="header-right">
-      <div class="user-box">
+      <button class="user-box" type="button" @click="goToProfile">
         <div class="avatar">
           {{ displayName.charAt(0).toUpperCase() }}
         </div>
@@ -16,7 +19,7 @@
           <span class="name">{{ displayName }}</span>
           <span class="role">{{ displayRole }}</span>
         </div>
-      </div>
+      </button>
 
       <button class="logout-btn" @click="logout">
         Logout
@@ -27,9 +30,10 @@
 
 <script setup>
 import { computed } from "vue"
-import { useRouter } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 
 const router = useRouter()
+const route = useRoute()
 
 const rawName =
   localStorage.getItem("fullName") ||
@@ -44,6 +48,13 @@ const displayRole = computed(() => {
   if (rawRole === "HR" || rawRole === "Admin") return "HR ADMIN"
   return rawRole
 })
+
+const pageTitle = computed(() => route.meta.title || "Dashboard")
+const pageSection = computed(() => route.meta.section || "Pages")
+
+const goToProfile = () => {
+  router.push("/profile")
+}
 
 const logout = () => {
   localStorage.clear()
@@ -60,7 +71,12 @@ const logout = () => {
   flex-wrap: wrap;
 }
 
-/* ---------------- LEFT ---------------- */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .path {
   font-size: 14px;
   color: #707eae;
@@ -74,7 +90,6 @@ const logout = () => {
   line-height: 1.2;
 }
 
-/* ---------------- RIGHT ---------------- */
 .header-right {
   display: flex;
   align-items: center;
@@ -85,11 +100,20 @@ const logout = () => {
   box-shadow: 14px 17px 40px rgba(112, 144, 176, 0.08);
 }
 
-/* ---------------- USER ---------------- */
 .user-box {
   display: flex;
   align-items: center;
   gap: 10px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.user-box:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .avatar {
@@ -108,6 +132,7 @@ const logout = () => {
   display: flex;
   flex-direction: column;
   font-size: 13px;
+  text-align: left;
 }
 
 .name {
@@ -120,7 +145,6 @@ const logout = () => {
   color: #707eae;
 }
 
-/* ---------------- LOGOUT ---------------- */
 .logout-btn {
   background: #4318ff;
   color: white;
@@ -146,14 +170,12 @@ const logout = () => {
   margin-right: 10px;
 }
 
-/* Hiện trên mobile */
 @media (max-width: 1024px) {
   .menu-btn {
     display: block;
   }
 }
 
-/* MOBILE */
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
@@ -189,7 +211,6 @@ const logout = () => {
   }
 }
 
-/* SMALL MOBILE */
 @media (max-width: 480px) {
   .path {
     font-size: 12px;

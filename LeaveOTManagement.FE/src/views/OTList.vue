@@ -3,7 +3,6 @@
     <header class="page-header">
       <div>
         <h2 class="fw-bold mb-1">Overtime Management</h2>
-        <p class="text-secondary small">Track and manage your extra working hours</p>
       </div>
 
       <button v-if="!showRegister" class="btn-register shadow-sm" @click="showRegister = true">

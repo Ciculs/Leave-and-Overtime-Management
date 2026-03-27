@@ -1,25 +1,18 @@
 <template>
   <div class="layout-wrapper">
-
     <!-- Sidebar -->
-    <AppSidebar
-      :class="{ open: isSidebarOpen }"
-      @click="closeSidebar"
-    />
+    <AppSidebar :class="{ open: isSidebarOpen }" @click="closeSidebar" />
 
     <!-- Overlay -->
-    <div
-      v-if="isSidebarOpen"
-      class="overlay"
-      @click="closeSidebar"
-    ></div>
+    <div v-if="isSidebarOpen" class="overlay" @click="closeSidebar"></div>
 
     <div class="main-container">
       <AppHeader @toggle-sidebar="toggleSidebar" />
 
       <main class="content-area">
-        <div class="blue-banner">
-          <h3>Leave & Overtime Management Platform</h3>
+        <div v-if="pageTitle || pageSubtitle" class="blue-banner">
+          <h2>{{ pageTitle }}</h2>
+          <p v-if="pageSubtitle">{{ pageSubtitle }}</p>
         </div>
 
         <router-view />
@@ -29,15 +22,16 @@
         © 2026 LeaveOT System. All rights reserved.
       </footer>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, computed } from "vue"
+import { useRoute } from "vue-router"
 import AppSidebar from "@/components/AppSidebar.vue"
 import AppHeader from "@/components/AppHeader.vue"
 
+const route = useRoute()
 const isSidebarOpen = ref(false)
 
 const toggleSidebar = () => {
@@ -47,31 +41,28 @@ const toggleSidebar = () => {
 const closeSidebar = () => {
   isSidebarOpen.value = false
 }
+
+const pageTitle = computed(() => route.meta.title || "Dashboard")
+const pageSubtitle = computed(() => route.meta.subtitle || "")
 </script>
 
 <style scoped>
-
-/* BASE LAYOUT */
-
 .layout-wrapper {
   min-height: 100vh;
   background: #f4f7fe;
 }
 
-/* MAIN */
 .main-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
-/* CONTENT */
 .content-area {
   padding: 30px 40px;
   flex: 1;
 }
 
-/* BLUE BANNER */
 .blue-banner {
   background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
   padding: 25px;
@@ -80,7 +71,18 @@ const closeSidebar = () => {
   margin-bottom: 30px;
 }
 
-/* FOOTER */
+.blue-banner h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.blue-banner p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
 .footer {
   padding: 20px;
   text-align: center;
@@ -88,10 +90,7 @@ const closeSidebar = () => {
   font-size: 14px;
 }
 
-/* DESKTOP (>=1024px) */
-
 @media (min-width: 1024px) {
-
   .sidebar {
     position: fixed;
     top: 0;
@@ -101,14 +100,11 @@ const closeSidebar = () => {
   }
 
   .main-container {
-    margin-left: 280px;   
+    margin-left: 280px;
   }
 }
 
-/* MOBILE (<1024px) */
-
 @media (max-width: 1023px) {
-
   .layout-wrapper {
     position: relative;
   }
@@ -139,21 +135,27 @@ const closeSidebar = () => {
   }
 
   .content-area {
-    padding: 0px 20px;
+    padding: 0 20px;
   }
 
   .blue-banner {
-    padding: 30px;
+    padding: 24px;
     border-radius: 15px;
+  }
+
+  .blue-banner h2 {
+    font-size: 22px;
   }
 }
 
-/* SMALL MOBILE (<768px) */
-
 @media (max-width: 768px) {
-
   .content-area {
     padding: 20px 15px;
+  }
+
+  .blue-banner {
+    padding: 20px;
+    margin-bottom: 20px;
   }
 
   .blue-banner h2 {
@@ -168,5 +170,4 @@ const closeSidebar = () => {
     font-size: 12px;
   }
 }
-
 </style>

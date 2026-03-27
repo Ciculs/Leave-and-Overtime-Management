@@ -4,7 +4,6 @@
             <div class="header">
                 <div>
                     <h2>Assign Manager</h2>
-                    <p>Assign or update the reporting manager for an employee.</p>
                 </div>
 
                 <button class="back-btn" @click="goBack">
