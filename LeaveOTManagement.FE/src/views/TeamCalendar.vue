@@ -3,74 +3,72 @@
     <h2 class="calendar-title">Team Calendar</h2>
 
     <div class="calendar">
-      <!-- HEADER -->
       <div class="calendar-header">
         <button @click="changeMonth(-1)">◀</button>
         <h3>{{ monthLabel }} {{ currentYear }}</h3>
         <button @click="changeMonth(1)">▶</button>
       </div>
 
-      <!-- GRID -->
       <Transition name="calendar-slide" mode="out-in">
         <div class="calendar-grid" :key="`${currentYear}-${currentMonth}`">
-          <!-- WEEK HEADER -->
-          <div
-            v-for="d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']"
-            :key="d"
-            class="day-name"
-          >
+          <div v-for="d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" :key="d" class="day-name">
             {{ d }}
           </div>
 
-          <!-- EMPTY -->
-          <div
-            v-for="n in firstDayOfMonth"
-            :key="'empty-' + n"
-            class="empty-cell"
-          ></div>
+          <div v-for="n in firstDayOfMonth" :key="'empty-' + n" class="empty-cell"></div>
 
-          <!-- DAY -->
-          <div
-            v-for="day in daysInMonth"
-            :key="day"
-            class="day-cell"
-            :class="{
-              today: isToday(day),
-              weekend: isWeekend(day),
-              'has-leave': leaveMap[getKey(day)]?.length
-            }"
-            @click="openDay(day)"
-          >
+          <div v-for="day in daysInMonth" :key="day" class="day-cell" :class="{
+            today: isToday(day),
+            weekend: isWeekend(day),
+            'has-leave': leaveMap[getKey(day)]?.length,
+            'has-holiday': holidayMap[getKey(day)],
+            'has-ot': otMap[getKey(day)]?.length
+          }" @click="openDay(day)">
             <div class="date-number">{{ day }}</div>
 
-            <!-- DOT -->
-            <div class="dots" v-if="leaveMap[getKey(day)]?.length">
-              <span class="dot leave-dot"></span>
+            <div class="dots" v-if="
+              leaveMap[getKey(day)]?.length ||
+              holidayMap[getKey(day)] ||
+              otMap[getKey(day)]?.length
+            ">
+              <span v-if="leaveMap[getKey(day)]?.length" class="dot leave-dot"></span>
+              <span v-if="holidayMap[getKey(day)]" class="dot holiday-dot"></span>
+              <span v-if="otMap[getKey(day)]?.length" class="dot ot-dot"></span>
             </div>
 
-            <!-- PREVIEW -->
-            <div
-              v-for="(leave, i) in (leaveMap[getKey(day)] || []).slice(0, 2)"
-              :key="leave.name + '-' + i"
-              class="mini-event"
-            >
-              {{ leave.name }}
+            <div v-if="holidayMap[getKey(day)]" class="mini-event holiday-event">
+              🎉 {{ holidayMap[getKey(day)] }}
             </div>
 
-            <div
-              v-if="(leaveMap[getKey(day)] || []).length > 2"
-              class="more-event"
-            >
-              +{{ leaveMap[getKey(day)].length - 2 }} more
+            <div v-for="(leave, i) in (leaveMap[getKey(day)] || []).slice(0, 1)" :key="'leave-' + leave.name + '-' + i"
+              class="mini-event leave-event">
+              📄 {{ leave.name }}
             </div>
 
-            <!-- TOOLTIP -->
-            <div class="tooltip" v-if="leaveMap[getKey(day)]?.length">
-              <div
-                v-for="(leave, i) in leaveMap[getKey(day)].slice(0, 3)"
-                :key="'tip-' + i"
-              >
+            <div v-for="(ot, i) in (otMap[getKey(day)] || []).slice(0, 1)" :key="'ot-' + ot.name + '-' + i"
+              class="mini-event ot-event">
+              ⏱ {{ ot.name }}
+            </div>
+
+            <div v-if="totalEvents(getKey(day)) > 2" class="more-event">
+              +{{ totalEvents(getKey(day)) - 2 }} more
+            </div>
+
+            <div class="tooltip" v-if="
+              leaveMap[getKey(day)]?.length ||
+              holidayMap[getKey(day)] ||
+              otMap[getKey(day)]?.length
+            ">
+              <div v-if="holidayMap[getKey(day)]">
+                🎉 {{ holidayMap[getKey(day)] }}
+              </div>
+
+              <div v-for="(leave, i) in (leaveMap[getKey(day)] || []).slice(0, 3)" :key="'tip-leave-' + i">
                 📄 {{ leave.name }} - {{ leave.type }}
+              </div>
+
+              <div v-for="(ot, i) in (otMap[getKey(day)] || []).slice(0, 3)" :key="'tip-ot-' + i">
+                ⏱ {{ ot.name }} - {{ ot.hours }}
               </div>
             </div>
           </div>
@@ -78,7 +76,6 @@
       </Transition>
     </div>
 
-    <!-- MODAL -->
     <div v-if="selectedDate" class="modal-overlay" @click.self="selectedDate = null">
       <div class="modal-card">
         <button class="modal-close" @click="selectedDate = null">✕</button>
@@ -86,15 +83,29 @@
         <h3>{{ selectedDate }}</h3>
 
         <div class="modal-body">
-          <div v-if="selectedLeaves.length === 0">No leave events</div>
+          <div v-if="
+            selectedLeaves.length === 0 &&
+            selectedOTs.length === 0 &&
+            !selectedHoliday
+          " class="empty-text">
+            No events
+          </div>
 
-          <div
-            v-for="(leave, index) in selectedLeaves"
-            :key="leave.name + '-' + index"
-            class="event leave"
-          >
+          <div v-if="selectedHoliday" class="event holiday">
+            <p><strong>Holiday:</strong> {{ selectedHoliday }}</p>
+          </div>
+
+          <div v-for="(leave, index) in selectedLeaves" :key="'modal-leave-' + leave.name + '-' + index"
+            class="event leave">
             <p><strong>Employee:</strong> {{ leave.name }}</p>
             <p><strong>Leave Type:</strong> {{ leave.type }}</p>
+          </div>
+
+          <div v-for="(ot, index) in selectedOTs" :key="'modal-ot-' + ot.name + '-' + index" class="event ot">
+            <p><strong>Employee:</strong> {{ ot.name }}</p>
+            <p><strong>OT:</strong> {{ ot.hours }}</p>
+            <p><strong>Reason:</strong> {{ ot.reason }}</p>
+            <p><strong>Status:</strong> {{ ot.status }}</p>
           </div>
         </div>
       </div>
@@ -105,13 +116,22 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue"
 import { getTeamCalendar } from "@/services/leaveService"
+import { getHolidayByYear } from "@/services/holidayService"
+import { getTeamOT } from "@/services/otService"
 
 const currentDate = ref(new Date())
+
 const leaves = ref([])
-const loadedMonths = ref([])
+const holidays = ref([])
+const ots = ref([])
+
+const loadedLeaveMonths = ref([])
+const loadedOTMonths = ref([])
 
 const selectedDate = ref(null)
 const selectedLeaves = ref([])
+const selectedOTs = ref([])
+const selectedHoliday = ref("")
 
 const currentMonth = computed(() => currentDate.value.getMonth())
 const currentYear = computed(() => currentDate.value.getFullYear())
@@ -123,7 +143,7 @@ const daysInMonth = computed(() =>
 )
 
 const firstDayOfMonth = computed(() => {
-  let d = new Date(currentYear.value, currentMonth.value, 1).getDay()
+  const d = new Date(currentYear.value, currentMonth.value, 1).getDay()
   return d === 0 ? 6 : d - 1
 })
 
@@ -131,25 +151,73 @@ const monthLabel = computed(() =>
   currentDate.value.toLocaleString("default", { month: "long" })
 )
 
+const normalizeDate = (date) => {
+  if (!date) return ""
+  return new Date(date).toISOString().split("T")[0]
+}
+
 const loadLeaves = async (year, month) => {
   const key = `${year}-${month}`
-  if (loadedMonths.value.includes(key)) return
+  if (loadedLeaveMonths.value.includes(key)) return
 
   try {
     const res = await getTeamCalendar(year, month)
     leaves.value = [...leaves.value, ...(res.data || [])]
-    loadedMonths.value.push(key)
+    loadedLeaveMonths.value.push(key)
   } catch (err) {
-    console.error("Load team calendar error", err)
+    console.error("Load team leave error", err)
   }
 }
 
-onMounted(() => {
-  loadLeaves(currentYear.value, currentMonth.value + 1)
+const loadOTs = async (year, month) => {
+  const key = `${year}-${month}`
+  if (loadedOTMonths.value.includes(key)) return
+
+  try {
+    const res = await getTeamOT(year, month)
+    ots.value = [...ots.value, ...(res.data || [])]
+    loadedOTMonths.value.push(key)
+  } catch (err) {
+    console.error("Load team OT error", err)
+  }
+}
+
+const loadHolidays = async (year) => {
+  try {
+    const res = await getHolidayByYear(year)
+    holidays.value = res.data || []
+  } catch (err) {
+    console.error("Load holidays error", err)
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([
+    loadLeaves(currentYear.value, currentMonth.value + 1),
+    loadOTs(currentYear.value, currentMonth.value + 1),
+    loadHolidays(currentYear.value)
+  ])
 })
 
 watch([currentYear, currentMonth], () => {
   loadLeaves(currentYear.value, currentMonth.value + 1)
+  loadOTs(currentYear.value, currentMonth.value + 1)
+})
+
+watch(currentYear, async (newYear, oldYear) => {
+  if (newYear !== oldYear) {
+    leaves.value = []
+    ots.value = []
+    holidays.value = []
+    loadedLeaveMonths.value = []
+    loadedOTMonths.value = []
+
+    await Promise.all([
+      loadLeaves(newYear, currentMonth.value + 1),
+      loadOTs(newYear, currentMonth.value + 1),
+      loadHolidays(newYear)
+    ])
+  }
 })
 
 const leaveMap = computed(() => {
@@ -159,7 +227,7 @@ const leaveMap = computed(() => {
     const start = new Date(l.startDate)
     const end = new Date(l.endDate)
 
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const key = d.toISOString().split("T")[0]
 
       if (!map[key]) map[key] = []
@@ -174,23 +242,77 @@ const leaveMap = computed(() => {
   return map
 })
 
-const getKey = (day) => {
-  return `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+const holidayMap = computed(() => {
+  const map = {}
+
+  holidays.value.forEach((h) => {
+    const key = normalizeDate(h.holidayDate || h.date)
+    if (key) map[key] = h.name
+  })
+
+  return map
+})
+
+const parseHours = (fromTime, toTime) => {
+  if (!fromTime || !toTime) return "0.00h"
+
+  const parse = (t) => {
+    const [h, m] = t.split(":").map(Number)
+    return h + m / 60
+  }
+
+  const from = parse(fromTime)
+  const to = parse(toTime)
+  const diff = to < from ? to + 24 - from : to - from
+
+  return `${diff.toFixed(2)}h`
 }
 
-const isToday = (day) => {
-  return getKey(day) === today
-}
+const otMap = computed(() => {
+  const map = {}
+
+  ots.value.forEach((ot) => {
+    const key = normalizeDate(ot.workDate)
+
+    if (!key) return
+    if (!map[key]) map[key] = []
+
+    map[key].push({
+      id: ot.id,
+      name: ot.employeeName,
+      reason: ot.reason,
+      status: ot.status,
+      hours: parseHours(ot.fromTime, ot.toTime)
+    })
+  })
+
+  return map
+})
+
+const getKey = (day) =>
+  `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+
+const isToday = (day) => getKey(day) === today
 
 const isWeekend = (day) => {
   const d = new Date(currentYear.value, currentMonth.value, day).getDay()
   return d === 0 || d === 6
 }
 
+const totalEvents = (key) => {
+  let total = 0
+  if (holidayMap.value[key]) total += 1
+  total += (leaveMap.value[key] || []).length
+  total += (otMap.value[key] || []).length
+  return total
+}
+
 const openDay = (day) => {
   const key = getKey(day)
   selectedDate.value = key
   selectedLeaves.value = leaveMap.value[key] || []
+  selectedOTs.value = otMap.value[key] || []
+  selectedHoliday.value = holidayMap.value[key] || ""
 }
 
 const changeMonth = (offset) => {
@@ -252,7 +374,7 @@ const changeMonth = (offset) => {
   background: #f9fbff;
   border-radius: 14px;
   padding: 10px;
-  min-height: 110px;
+  min-height: 120px;
   position: relative;
   cursor: pointer;
   transition: 0.25s;
@@ -282,6 +404,15 @@ const changeMonth = (offset) => {
   background: #e7f0ff;
 }
 
+.has-holiday {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+}
+
+.has-ot {
+  box-shadow: inset 0 0 0 1px #86efac;
+}
+
 .dots {
   position: absolute;
   bottom: 6px;
@@ -300,16 +431,39 @@ const changeMonth = (offset) => {
   background: #2563eb;
 }
 
+.holiday-dot {
+  background: #dc2626;
+}
+
+.ot-dot {
+  background: #16a34a;
+}
+
 .mini-event {
   margin-top: 4px;
   font-size: 11px;
   padding: 3px 6px;
   border-radius: 6px;
-  background: #eef2ff;
-  color: #2b3674;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.leave-event {
+  background: #eef2ff;
+  color: #2b3674;
+}
+
+.holiday-event {
+  background: #ffe4e6;
+  color: #be123c;
+  font-weight: 600;
+}
+
+.ot-event {
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 600;
 }
 
 .more-event {
@@ -339,8 +493,10 @@ const changeMonth = (offset) => {
 }
 
 .empty-cell {
-  min-height: 110px;
+  min-height: 120px;
 }
+
+/* ================= MODAL ================= */
 
 .modal-overlay {
   position: fixed;
@@ -387,26 +543,88 @@ const changeMonth = (offset) => {
 .modal-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   margin-top: 10px;
   padding-right: 5px;
 }
+
+/* ================= EVENT ================= */
 
 .event {
   margin-top: 12px;
   padding: 14px;
   border-radius: 12px;
   font-size: 14px;
+  overflow: hidden;
 }
 
 .event.leave {
   background: #e7f0ff;
 }
 
+.event.holiday {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.event.ot {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* ================= REASON FIX ================= */
+
+.reason-box {
+  margin-top: 10px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #4318ff;
+  border-radius: 10px;
+
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+
+  max-height: 140px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* fallback nếu quên bọc reason-box */
+.event p,
+.event div,
+.event span,
+.event li {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* ================= SCROLLBAR ================= */
+
+.reason-box::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.reason-box::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+/* ================= ANIMATION ================= */
+
 @keyframes modalFade {
   from {
     opacity: 0;
     transform: scale(0.9) translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -428,6 +646,8 @@ const changeMonth = (offset) => {
   transform: translateX(-20px);
 }
 
+/* ================= RESPONSIVE ================= */
+
 @media (max-width: 768px) {
   .calendar-wrapper {
     padding: 15px;
@@ -438,7 +658,7 @@ const changeMonth = (offset) => {
   }
 
   .day-cell {
-    min-height: 85px;
+    min-height: 90px;
     padding: 6px;
   }
 

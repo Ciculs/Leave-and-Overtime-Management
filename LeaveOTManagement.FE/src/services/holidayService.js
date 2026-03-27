@@ -1,22 +1,29 @@
 import api from "./api"
 
-// ===============================
-// GET ALL HOLIDAYS
-// ===============================
 export const getHolidays = () => {
   return api.get("/holidays")
 }
 
-// ===============================
-// GET HOLIDAYS BY YEAR (AUTO LOAD)
-// ===============================
 export const getHolidayByYear = (year) => {
   return api.get(`/holidays/year/${year}`)
 }
 
-// ===============================
-// IMPORT HOLIDAY EXCEL
-// ===============================
+export const syncHolidayByYear = (year) => {
+  return api.post(`/holidays/sync/${year}`)
+}
+
+export const createHoliday = (payload) => {
+  return api.post("/holidays", payload)
+}
+
+export const updateHoliday = (id, payload) => {
+  return api.put(`/holidays/${id}`, payload)
+}
+
+export const deleteHoliday = (id) => {
+  return api.delete(`/holidays/${id}`)
+}
+
 export const importHoliday = (file) => {
   const formData = new FormData()
   formData.append("file", file)

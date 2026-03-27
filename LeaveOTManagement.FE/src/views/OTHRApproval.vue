@@ -10,7 +10,6 @@
     </header>
 
     <main>
-      <!-- HR STATS -->
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-number">{{ ots.length }}</div>
@@ -33,7 +32,6 @@
         </div>
       </div>
 
-      <!-- FILTER -->
       <div class="filter-bar">
         <select v-model="selectedStatus" class="filter-select">
           <option value="">All Requests</option>
@@ -54,7 +52,6 @@
         </div>
       </div>
 
-      <!-- GRID -->
       <div class="ot-grid">
         <div v-for="ot in paginatedOT" :key="ot.id" class="ot-card" @click="openDetail(ot)">
           <div class="card-status-strip" :class="ot.status?.toLowerCase()"></div>
@@ -88,7 +85,6 @@
         </div>
       </div>
 
-      <!-- PAGINATION -->
       <div v-if="totalPages > 1" class="pagination">
         <button class="page-btn" :disabled="currentPage === 1" @click="prevPage">
           ←
@@ -104,7 +100,6 @@
         </button>
       </div>
 
-      <!-- MODAL -->
       <teleport to="body">
         <div v-if="selectedOT" class="modal-overlay" @click.self="selectedOT = null">
           <div class="modal-card">
@@ -134,12 +129,8 @@
                 <label>Reason</label>
                 <p>{{ selectedOT.reason }}</p>
               </div>
-
-              <div v-if="selectedOT.status === 'Rejected'" class="info-card full reject-reason-card">
-              </div>
             </div>
 
-            <!-- TIMELINE -->
             <div class="timeline">
               <div class="timeline-item done">
                 <div class="dot"></div>
@@ -152,7 +143,6 @@
               </div>
             </div>
 
-            <!-- ACTION -->
             <div v-if="selectedOT.userApprovalStatus === 'Pending' && selectedOT.status === 'ManagerApproved'"
               class="modal-actions">
               <button class="approve-btn" @click="hrApprove(selectedOT.id)">
@@ -166,7 +156,6 @@
           </div>
         </div>
 
-        <!-- REJECT MODAL -->
         <div v-if="showRejectModal" class="modal-overlay">
           <div class="modal-card">
             <h3 class="modal-title">Reject OT Request</h3>
@@ -309,9 +298,18 @@ async function hrApprove(id) {
     await api.put(`/OT/${id}/hr-approve`)
     await loadOT()
     selectedOT.value = null
+    alert("Approved successfully")
   } catch (err) {
-    console.error(err)
-    alert("Lỗi khi phê duyệt: " + (err.response?.data?.message || err.message))
+    console.error("Approve error:", err.response?.data || err)
+
+    const data = err.response?.data
+    const msg =
+      data?.innerMost ||
+      data?.inner ||
+      data?.message ||
+      err.message
+
+    alert("Lỗi khi phê duyệt: " + msg)
   }
 }
 
@@ -328,7 +326,7 @@ async function confirmReject() {
   }
 
   try {
-    await api.put(`/OT/${rejectId.value}/hr-reject`, {
+    await api.put(`/OT/${rejectId.value}/reject`, {
       reason: rejectReason.value
     })
 
@@ -336,13 +334,20 @@ async function confirmReject() {
 
     showRejectModal.value = false
     selectedOT.value = null
+    rejectReason.value = ""
+    rejectId.value = null
+
+    alert("Rejected successfully")
   } catch (err) {
     console.error(err)
+    alert("Lỗi khi từ chối: " + (err.response?.data?.message || err.message))
   }
 }
 
 function closeReject() {
   showRejectModal.value = false
+  rejectReason.value = ""
+  rejectId.value = null
 }
 
 const formatDate = (dateStr) => {
@@ -383,12 +388,10 @@ const calculateHours = (detail) => {
   min-height: 100vh;
 }
 
-/* HEADER */
 .page-header {
   margin-bottom: 30px;
 }
 
-/* FILTER */
 .filter-bar {
   display: flex;
   align-items: center;
@@ -398,10 +401,11 @@ const calculateHours = (detail) => {
 
 .filter-select {
   padding: 10px 16px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: none;
   background: white;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .05);
+  cursor: pointer;
 }
 
 .request-count {
@@ -409,14 +413,12 @@ const calculateHours = (detail) => {
   margin-left: auto;
 }
 
-/* GRID */
 .ot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 24px;
 }
 
-/* CARD */
 .ot-card {
   background: white;
   border-radius: 18px;
@@ -475,7 +477,6 @@ const calculateHours = (detail) => {
   font-weight: 600;
 }
 
-/* STATUS */
 .status-pill {
   padding: 6px 14px;
   border-radius: 20px;
@@ -499,7 +500,6 @@ const calculateHours = (detail) => {
   color: #b91c1c;
 }
 
-/* PAGINATION */
 .pagination {
   display: flex;
   justify-content: center;
@@ -522,7 +522,6 @@ const calculateHours = (detail) => {
   color: white;
 }
 
-/* MODAL */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -558,7 +557,6 @@ const calculateHours = (detail) => {
   margin-bottom: 20px;
 }
 
-/* INFO GRID */
 .modal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -585,7 +583,6 @@ const calculateHours = (detail) => {
   margin-bottom: 4px;
 }
 
-/* TIMELINE */
 .timeline {
   margin-top: 20px;
   border-left: 2px solid #e2e8f0;
@@ -616,7 +613,6 @@ const calculateHours = (detail) => {
   background: #2563eb;
 }
 
-/* ACTION */
 .modal-actions {
   display: flex;
   gap: 12px;
@@ -639,7 +635,6 @@ const calculateHours = (detail) => {
   border-radius: 8px;
 }
 
-/* HR DASHBOARD STATS */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -681,26 +676,5 @@ const calculateHours = (detail) => {
   padding: 10px;
   resize: none;
   font-size: 14px;
-}
-
-.reject-reason {
-  color: #b91c1c;
-  font-size: 13px;
-  margin-top: 6px;
-  font-style: italic;
-}
-
-.reject-reason-card {
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-}
-
-.filter-select {
-  padding: 10px 16px;
-  border-radius: 12px;
-  border: none;
-  background: white;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .05);
-  cursor: pointer;
 }
 </style>

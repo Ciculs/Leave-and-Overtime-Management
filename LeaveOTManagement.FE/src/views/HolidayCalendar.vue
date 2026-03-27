@@ -9,6 +9,9 @@ const props = defineProps({
   }
 })
 
+/* EMIT CLICKED DATE TO PARENT */
+const emit = defineEmits(["date-click"])
+
 /* CURRENT DATE STATE */
 const currentDate = ref(new Date())
 
@@ -24,25 +27,20 @@ const daysInMonth = computed(() => {
 })
 
 const firstDayOfMonth = computed(() => {
-
   let day = new Date(currentYear.value, currentMonth.value, 1).getDay()
-
   return day === 0 ? 6 : day - 1
-
 })
 
 /* BUILD HOLIDAY MAP */
 
 const holidayMap = computed(() => {
-
   const map = {}
 
   props.holidays.forEach((h) => {
-    map[h.holidayDate] = h.name
+    map[h.holidayDate] = h
   })
 
   return map
-
 })
 
 /* HELPERS */
@@ -64,16 +62,18 @@ const getDateKey = (day) => {
   return `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 }
 
+const handleDateClick = (day) => {
+  emit("date-click", getDateKey(day))
+}
+
 /* MONTH NAVIGATION */
 
 const changeMonth = (offset) => {
-
   currentDate.value = new Date(
     currentYear.value,
     currentMonth.value + offset,
     1
   )
-
 }
 
 const monthLabel = computed(() => {
@@ -89,9 +89,6 @@ const monthLabel = computed(() => {
 
 <template>
   <div class="calendar">
-
-    <!-- HEADER -->
-
     <div class="calendar-header">
       <button @click="changeMonth(-1)">◀</button>
 
@@ -102,46 +99,33 @@ const monthLabel = computed(() => {
       <button @click="changeMonth(1)">▶</button>
     </div>
 
-    <!-- CALENDAR -->
-
     <Transition name="calendar-slide" mode="out-in">
       <div class="calendar-grid" :key="`${currentYear}-${currentMonth}`">
-
-        <!-- WEEKDAY HEADER -->
-
         <div class="day-name" v-for="d in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']" :key="d">
           {{ d }}
         </div>
 
-        <!-- EMPTY CELLS -->
-
         <div v-for="n in firstDayOfMonth" :key="'empty-' + n" class="empty-cell"></div>
-
-        <!-- DAYS -->
 
         <div v-for="day in daysInMonth" :key="day" class="day-cell" :class="{
           holiday: holidayMap[getDateKey(day)],
           weekend: isWeekend(day),
           today: isToday(day)
-        }">
-
-          <!-- DAY NUMBER -->
-
+        }" @click="handleDateClick(day)">
           <div class="date-number">
             {{ day }}
           </div>
 
-          <!-- HOLIDAY -->
-
           <div v-if="holidayMap[getDateKey(day)]" class="holiday-name">
-            🎉 {{ holidayMap[getDateKey(day)] }}
+            🎉 {{ holidayMap[getDateKey(day)].name }}
           </div>
 
+          <div v-else class="add-hint">
+            + Add holiday
+          </div>
         </div>
-
       </div>
     </Transition>
-
   </div>
 </template>
 
@@ -163,6 +147,7 @@ const monthLabel = computed(() => {
   padding: 6px 12px;
   border-radius: 8px;
   cursor: pointer;
+  transition: 0.2s;
 }
 
 .calendar-header button:hover {
@@ -185,19 +170,23 @@ const monthLabel = computed(() => {
   background: #f9fbff;
   border-radius: 12px;
   padding: 8px;
-  min-height: 90px;
+  min-height: 100px;
   transition: 0.2s;
   position: relative;
+  cursor: pointer;
+  border: 1px solid transparent;
 }
 
 .day-cell:hover {
   transform: translateY(-2px);
   background: #edf2ff;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+  border-color: #c7d2fe;
 }
 
 .date-number {
   font-weight: bold;
+  color: #2b3674;
 }
 
 .holiday {
@@ -206,13 +195,20 @@ const monthLabel = computed(() => {
 }
 
 .holiday-name {
-  font-size: 10px;
-  margin-top: 4px;
+  font-size: 11px;
+  margin-top: 6px;
   background: #ffe0e0;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
   display: inline-block;
   color: #b91c1c;
+  line-height: 1.4;
+}
+
+.add-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #94a3b8;
 }
 
 .weekend {
@@ -224,7 +220,7 @@ const monthLabel = computed(() => {
 }
 
 .empty-cell {
-  min-height: 90px;
+  min-height: 100px;
 }
 
 .calendar-slide-enter-active,
@@ -240,5 +236,25 @@ const monthLabel = computed(() => {
 .calendar-slide-leave-to {
   opacity: 0;
   transform: translateX(-20px);
+}
+
+@media (max-width: 768px) {
+  .calendar-grid {
+    gap: 6px;
+  }
+
+  .day-cell {
+    min-height: 85px;
+    padding: 6px;
+  }
+
+  .holiday-name {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .add-hint {
+    font-size: 10px;
+  }
 }
 </style>

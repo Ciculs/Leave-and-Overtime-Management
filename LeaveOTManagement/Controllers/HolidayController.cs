@@ -1,25 +1,28 @@
 ﻿using LeaveOTManagement.Data;
 using LeaveOTManagement.Models.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
-using System.Text.Json;
 
 namespace LeaveOTManagement.Controllers
 {
     [Route("api/holidays")]
     [ApiController]
+    [Authorize]
     public class HolidayController : ControllerBase
     {
         private readonly LeaveOTContext _context;
+        private readonly VietnameseHolidayService _vnHolidayService;
 
         public HolidayController(LeaveOTContext context)
         {
             _context = context;
+            _vnHolidayService = new VietnameseHolidayService();
         }
 
         // ===============================
-        // GET ALL HOLIDAYS
+        // GET ALL
         // ===============================
         [HttpGet]
         public async Task<IActionResult> Get()
@@ -32,62 +35,84 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
-        // GET HOLIDAYS BY YEAR (AUTO SYNC)
+        // GET BY YEAR
         // ===============================
         [HttpGet("year/{year}")]
         public async Task<IActionResult> GetByYear(int year)
         {
             var holidays = await _context.Holidays
                 .Where(h => h.HolidayDate.Year == year)
+                .OrderBy(h => h.HolidayDate)
                 .ToListAsync();
-
-            // nếu DB chưa có holiday của năm này
-            if (!holidays.Any())
-            {
-                var client = new HttpClient();
-
-                var url = $"https://date.nager.at/api/v3/PublicHolidays/{year}/VN";
-
-                var response = await client.GetStringAsync(url);
-
-                var apiHolidays = JsonSerializer.Deserialize<List<HolidayApiDto>>(response);
-
-                if (apiHolidays != null)
-                {
-                    foreach (var h in apiHolidays)
-                    {
-                        var date = DateOnly.Parse(h.date);
-
-                        bool exists = await _context.Holidays
-                            .AnyAsync(x => x.HolidayDate == date);
-
-                        if (!exists)
-                        {
-                            _context.Holidays.Add(new Holiday
-                            {
-                                HolidayDate = date,
-                                Name = h.localName
-                            });
-                        }
-                    }
-
-                    await _context.SaveChangesAsync();
-                }
-
-                holidays = await _context.Holidays
-                    .Where(h => h.HolidayDate.Year == year)
-                    .ToListAsync();
-            }
 
             return Ok(holidays);
         }
 
         // ===============================
-        // CREATE HOLIDAY
+        // SYNC VIETNAM HOLIDAY
+        // ===============================
+        [HttpPost("sync/{year}")]
+        [Authorize(Roles = "HR,Admin")]
+        public async Task<IActionResult> SyncByYear(int year)
+        {
+            var generated = _vnHolidayService.Generate(year);
+            int added = 0;
+
+            foreach (var h in generated)
+            {
+                bool exists = await _context.Holidays
+                    .AnyAsync(x => x.HolidayDate == h.HolidayDate);
+
+                if (!exists)
+                {
+                    _context.Holidays.Add(new Holiday
+                    {
+                        HolidayDate = h.HolidayDate,
+                        Name = h.Name,
+                        IsDayOff = true,
+                        IsLeaveBlocked = false,
+                        Source = "API"
+                    });
+
+                    added++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            var holidays = await _context.Holidays
+                .Where(h => h.HolidayDate.Year == year)
+                .OrderBy(h => h.HolidayDate)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                message = $"Generated {added} holidays for {year}",
+                data = holidays
+            });
+        }
+
+        // ===============================
+        // CREATE
         // ===============================
         [HttpPost]
-        public async Task<IActionResult> Create(Holiday holiday)
+        [Authorize(Roles = "HR,Admin")]
+        public async Task<IActionResult> Create([FromBody] Holiday holiday)
         {
+            if (holiday == null)
+                return BadRequest("Invalid data.");
+
+            if (string.IsNullOrWhiteSpace(holiday.Name))
+                return BadRequest("Holiday name is required.");
+
+            bool exists = await _context.Holidays
+                .AnyAsync(h => h.HolidayDate == holiday.HolidayDate);
+
+            if (exists)
+                return BadRequest("This date already exists.");
+
+            holiday.Source ??= "Manual";
+
             _context.Holidays.Add(holiday);
             await _context.SaveChangesAsync();
 
@@ -95,13 +120,67 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
+        // UPDATE
+        // ===============================
+        [HttpPut("{id}")]
+        [Authorize(Roles = "HR,Admin")]
+        public async Task<IActionResult> Update(int id, [FromBody] Holiday model)
+        {
+            var holiday = await _context.Holidays.FindAsync(id);
+
+            if (holiday == null)
+                return NotFound("Holiday not found.");
+
+            if (string.IsNullOrWhiteSpace(model.Name))
+                return BadRequest("Holiday name is required.");
+
+            bool duplicate = await _context.Holidays
+                .AnyAsync(h => h.Id != id && h.HolidayDate == model.HolidayDate);
+
+            if (duplicate)
+                return BadRequest("Another holiday already uses this date.");
+
+            holiday.HolidayDate = model.HolidayDate;
+            holiday.Name = model.Name;
+            holiday.IsDayOff = model.IsDayOff;
+            holiday.IsLeaveBlocked = model.IsLeaveBlocked;
+            holiday.Source = string.IsNullOrWhiteSpace(model.Source)
+                ? holiday.Source
+                : model.Source;
+            holiday.Note = model.Note;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Holiday updated successfully." });
+        }
+
+        // ===============================
+        // DELETE
+        // ===============================
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "HR,Admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var holiday = await _context.Holidays.FindAsync(id);
+
+            if (holiday == null)
+                return NotFound("Holiday not found.");
+
+            _context.Holidays.Remove(holiday);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Holiday deleted successfully." });
+        }
+
+        // ===============================
         // IMPORT EXCEL
         // ===============================
         [HttpPost("import")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> Import(IFormFile file)
         {
             if (file == null || file.Length == 0)
-                return BadRequest("No file uploaded");
+                return BadRequest("No file uploaded.");
 
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream);
@@ -110,19 +189,21 @@ namespace LeaveOTManagement.Controllers
             var worksheet = package.Workbook.Worksheets.FirstOrDefault();
 
             if (worksheet == null)
-                return BadRequest("Invalid Excel file");
+                return BadRequest("Invalid Excel file.");
 
-            int rowCount = worksheet.Dimension.Rows;
+            int rowCount = worksheet.Dimension?.Rows ?? 0;
+            int added = 0;
 
             for (int row = 2; row <= rowCount; row++)
             {
                 var dateText = worksheet.Cells[row, 1].Text?.Trim();
                 var name = worksheet.Cells[row, 2].Text?.Trim();
 
-                if (string.IsNullOrEmpty(dateText) || string.IsNullOrEmpty(name))
+                if (string.IsNullOrWhiteSpace(dateText) || string.IsNullOrWhiteSpace(name))
                     continue;
 
-                var date = DateOnly.Parse(dateText);
+                if (!DateOnly.TryParse(dateText, out var date))
+                    continue;
 
                 bool exists = await _context.Holidays
                     .AnyAsync(h => h.HolidayDate == date);
@@ -132,23 +213,22 @@ namespace LeaveOTManagement.Controllers
                     _context.Holidays.Add(new Holiday
                     {
                         HolidayDate = date,
-                        Name = name
+                        Name = name,
+                        IsDayOff = true,
+                        IsLeaveBlocked = false,
+                        Source = "Import"
                     });
+
+                    added++;
                 }
             }
 
             await _context.SaveChangesAsync();
 
-            return Ok("Import successful");
+            return Ok(new
+            {
+                message = $"Import successful. Added {added} holidays."
+            });
         }
-    }
-
-    // ===============================
-    // DTO FOR HOLIDAY API
-    // ===============================
-    public class HolidayApiDto
-    {
-        public string date { get; set; }
-        public string localName { get; set; }
     }
 }

@@ -4,7 +4,6 @@
         <header class="page-header">
             <div class="header-left">
                 <h2>OT Approval</h2>
-                <p class="text-secondary">Manager approve or reject overtime requests</p>
             </div>
 
             <div class="header-right">

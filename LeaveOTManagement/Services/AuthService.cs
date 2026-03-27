@@ -23,7 +23,6 @@ namespace LeaveOTManagement.Service
 
         public async Task<LoginResponseDto?> LoginAsync(LoginRequestDto request)
         {
-            // Debug xem đang connect DB nào
             Console.WriteLine("DB Name: " + _context.Database.GetDbConnection().Database);
             Console.WriteLine("Data Source: " + _context.Database.GetDbConnection().DataSource);
 
@@ -41,11 +40,9 @@ namespace LeaveOTManagement.Service
             if (account.IsLocked == true)
                 return null;
 
-            // So sánh password (plain text theo DB hiện tại)
             if (account.PasswordHash != request.Password)
                 return null;
 
-            // Lấy user riêng để tránh Include lỗi mapping
             var user = await _context.Users
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Id == account.UserId);
@@ -53,28 +50,27 @@ namespace LeaveOTManagement.Service
             if (user == null)
                 return null;
 
-            // Update LastLoginAt riêng
             account.LastLoginAt = DateTime.Now;
             _context.Accounts.Update(account);
             await _context.SaveChangesAsync();
 
-            var token = GenerateJwtToken(user);
+            var roleName = (user.Role?.Name ?? "").Trim();
+            var token = GenerateJwtToken(user, roleName);
 
             return new LoginResponseDto
             {
                 Token = token,
                 FullName = user.FullName,
                 Email = user.Email,
-                Role = user.Role?.Name ?? ""
+                Role = roleName
             };
         }
 
-        private string GenerateJwtToken(User user)
+        private string GenerateJwtToken(User user, string roleName)
         {
             var jwtKey = _configuration["Jwt:Key"];
             var issuer = _configuration["Jwt:Issuer"];
             var audience = _configuration["Jwt:Audience"];
-            var expireMinutes = Convert.ToDouble(_configuration["Jwt:ExpireMinutes"]);
 
             if (string.IsNullOrEmpty(jwtKey))
                 throw new Exception("JWT Key is missing in configuration.");
@@ -84,7 +80,7 @@ namespace LeaveOTManagement.Service
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.FullName ?? ""),
                 new Claim(ClaimTypes.Email, user.Email ?? ""),
-                new Claim(ClaimTypes.Role, user.Role?.Name ?? "")
+                new Claim(ClaimTypes.Role, roleName)
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
@@ -99,6 +95,5 @@ namespace LeaveOTManagement.Service
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-        
     }
 }

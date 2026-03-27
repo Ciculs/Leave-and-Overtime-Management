@@ -1,5 +1,4 @@
-﻿using Azure.Core;
-using System;
+﻿using System;
 
 namespace LeaveOTManagement.Models.Entities
 {
@@ -17,12 +16,10 @@ namespace LeaveOTManagement.Models.Entities
 
         public decimal RateMultiplier { get; set; }
 
-        public decimal? Amount { get; set; }
-
         public DateTime CreatedAt { get; set; }
 
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
-        public Otrequest Otrequest { get; set; }
+        public Otrequest Otrequest { get; set; } = null!;
     }
 }

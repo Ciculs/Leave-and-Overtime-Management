@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using LeaveOTManagement.Services.Interfaces;
+﻿using System.Security.Claims;
 using LeaveOTManagement.DTOs.OT;
-using System.Security.Claims;
+using LeaveOTManagement.Services;
+using LeaveOTManagement.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LeaveOTManagement.Controllers
 {
@@ -30,31 +32,40 @@ namespace LeaveOTManagement.Controllers
             return int.TryParse(claim.Value, out userId);
         }
 
-        // CREATE OT
         [HttpPost]
         public async Task<IActionResult> Create(CreateOtRequestDto dto)
         {
             if (!TryGetUserId(out int userId))
                 return Unauthorized();
 
-            var id = await _service.CreateOtAsync(userId, dto);
-
-            return Ok(new { id });
+            try
+            {
+                var id = await _service.CreateOtAsync(userId, dto);
+                return Ok(new { id });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, inner = ex.InnerException?.Message });
+            }
         }
 
-        // UPDATE OT
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(long id, UpdateOtRequestDto dto)
         {
             if (!TryGetUserId(out int userId))
                 return Unauthorized();
 
-            await _service.UpdateOtAsync(id, userId, dto);
-
-            return Ok();
+            try
+            {
+                await _service.UpdateOtAsync(id, userId, dto);
+                return Ok(new { message = "OT request updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, inner = ex.InnerException?.Message });
+            }
         }
 
-        // GET MY OT
         [HttpGet]
         public async Task<IActionResult> GetMyOt([FromQuery] string? status)
         {
@@ -62,11 +73,9 @@ namespace LeaveOTManagement.Controllers
                 return Unauthorized();
 
             var result = await _service.GetMyOtAsync(userId, status);
-
             return Ok(result);
         }
 
-        // GET BY ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(long id)
         {
@@ -76,12 +85,11 @@ namespace LeaveOTManagement.Controllers
             var result = await _service.GetOtByIdAsync(id, userId);
 
             if (result == null)
-                return NotFound();
+                return NotFound(new { message = "OT request not found." });
 
             return Ok(result);
         }
 
-        // GET OT PENDING FOR APPROVAL (MANAGER OR HR)
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending()
         {
@@ -89,35 +97,57 @@ namespace LeaveOTManagement.Controllers
                 return Unauthorized();
 
             var result = await _service.GetPendingApprovalsAsync(userId);
-
             return Ok(result);
         }
 
-        // MANAGER APPROVE
         [HttpPut("{id}/manager-approve")]
         public async Task<IActionResult> ManagerApprove(long id)
         {
             if (!TryGetUserId(out int userId))
                 return Unauthorized();
 
-            await _service.ManagerApproveOtAsync(id, userId);
-
-            return Ok(new { message = "Manager approved. Sent to HR." });
+            try
+            {
+                await _service.ManagerApproveOtAsync(id, userId);
+                return Ok(new { message = "Manager approved. Sent to HR." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, inner = ex.InnerException?.Message });
+            }
         }
 
-        // HR APPROVE
         [HttpPut("{id}/hr-approve")]
         public async Task<IActionResult> HrApprove(long id)
         {
             if (!TryGetUserId(out int userId))
                 return Unauthorized();
 
-            await _service.HrApproveOtAsync(id, userId);
-
-            return Ok(new { message = "HR approved OT request." });
+            try
+            {
+                await _service.HrApproveOtAsync(id, userId);
+                return Ok(new { message = "HR approved OT request." });
+            }
+            catch (DbUpdateException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message,
+                    inner = ex.InnerException?.Message,
+                    innerMost = ex.InnerException?.InnerException?.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message,
+                    inner = ex.InnerException?.Message,
+                    innerMost = ex.InnerException?.InnerException?.Message
+                });
+            }
         }
 
-        // REJECT (MANAGER OR HR)
         [HttpPut("{id}/reject")]
         public async Task<IActionResult> Reject(long id, [FromBody] RejectOtDto dto)
         {
@@ -125,11 +155,17 @@ namespace LeaveOTManagement.Controllers
                 return Unauthorized();
 
             if (dto == null || string.IsNullOrWhiteSpace(dto.Reason))
-                return BadRequest("Reject reason is required.");
+                return BadRequest(new { message = "Reject reason is required." });
 
-            await _service.RejectOtAsync(id, userId, dto.Reason);
-
-            return Ok(new { message = "OT request rejected." });
+            try
+            {
+                await _service.RejectOtAsync(id, userId, dto.Reason);
+                return Ok(new { message = "OT request rejected." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, inner = ex.InnerException?.Message });
+            }
         }
 
         [HttpGet("hr-pending")]
@@ -139,8 +175,24 @@ namespace LeaveOTManagement.Controllers
                 return Unauthorized();
 
             var result = await _service.GetPendingApprovalsAsync(userId);
-
             return Ok(result);
+        }
+
+        [HttpGet("team-calendar")]
+        public async Task<IActionResult> GetTeamCalendar([FromQuery] int year, [FromQuery] int month)
+        {
+            if (!TryGetUserId(out int userId))
+                return Unauthorized();
+
+            try
+            {
+                var result = await _service.GetTeamOtCalendarAsync(userId, year, month);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message, inner = ex.InnerException?.Message });
+            }
         }
     }
 }
