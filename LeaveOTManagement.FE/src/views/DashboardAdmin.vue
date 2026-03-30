@@ -81,14 +81,6 @@
             <p>Track leave and overtime trends through reporting dashboards.</p>
           </div>
         </div>
-
-        <div class="module-card" @click="goToReportDashboard">
-          <div class="module-icon">📑</div>
-          <div class="module-content">
-            <h3>Report Dashboard</h3>
-            <p>Open the detailed reporting dashboard for HR/Admin.</p>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -178,10 +170,6 @@ const goToHolidayCalendar = () => {
 
 const goToReports = () => {
   router.push("/reports")
-}
-
-const goToReportDashboard = () => {
-  router.push("/report-dashboard")
 }
 
 const goToUserManagement = () => {

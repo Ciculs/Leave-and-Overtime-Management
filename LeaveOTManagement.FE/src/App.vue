@@ -1,11 +1,9 @@
 <template>
   <router-view />
 
-  <!-- GLOBAL TOAST -->
   <div class="toast-wrapper">
     <transition-group name="slide">
-      <div v-for="toast in toasts" :key="toast.id" :class="['toast-box', toast.type]" @click="removeToast(toast.id)"
-        >
+      <div v-for="toast in toasts" :key="toast.id" :class="['toast-box', toast.type]" @click="removeToast(toast.id)">
         {{ toast.message }}
       </div>
     </transition-group>
@@ -42,6 +40,12 @@ window.$toast = (message, type = "success") => {
 </script>
 
 <style>
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
 .toast-wrapper {
   position: fixed;
   top: 20px;
@@ -59,26 +63,21 @@ window.$toast = (message, type = "success") => {
   font-weight: 600;
   border-radius: 999px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-
   cursor: pointer;
 }
 
-/* SUCCESS */
 .toast-box.success {
   background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
-/* ERROR */
 .toast-box.error {
   background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
-/* WARNING */
 .toast-box.warning {
   background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
-/* ANIMATION */
 .slide-enter-active,
 .slide-leave-active {
   transition: all 0.4s ease;
