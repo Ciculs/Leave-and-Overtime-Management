@@ -1,9 +1,7 @@
 <template>
   <div class="layout-wrapper">
-    <!-- Sidebar -->
     <AppSidebar :class="{ open: isSidebarOpen }" @click="closeSidebar" />
 
-    <!-- Overlay -->
     <div v-if="isSidebarOpen" class="overlay" @click="closeSidebar"></div>
 
     <div class="main-container">
@@ -50,17 +48,21 @@ const pageSubtitle = computed(() => route.meta.subtitle || "")
 .layout-wrapper {
   min-height: 100vh;
   background: #f4f7fe;
+  transition: background 0.3s ease;
 }
 
 .main-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: background 0.3s ease;
 }
 
 .content-area {
   padding: 30px 40px;
   flex: 1;
+  background: transparent;
+  transition: background 0.3s ease;
 }
 
 .blue-banner {
@@ -69,6 +71,8 @@ const pageSubtitle = computed(() => route.meta.subtitle || "")
   border-radius: 20px;
   color: white;
   margin-bottom: 30px;
+  box-shadow: 0 16px 35px rgba(49, 130, 206, 0.18);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
 .blue-banner h2 {
@@ -88,8 +92,10 @@ const pageSubtitle = computed(() => route.meta.subtitle || "")
   text-align: center;
   color: #a3aed0;
   font-size: 14px;
+  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
 }
 
+/* DESKTOP */
 @media (min-width: 1024px) {
   .sidebar {
     position: fixed;
@@ -104,6 +110,7 @@ const pageSubtitle = computed(() => route.meta.subtitle || "")
   }
 }
 
+/* TABLET / MOBILE SIDEBAR */
 @media (max-width: 1023px) {
   .layout-wrapper {
     position: relative;
@@ -130,7 +137,8 @@ const pageSubtitle = computed(() => route.meta.subtitle || "")
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
     z-index: 900;
   }
 
@@ -169,5 +177,32 @@ const pageSubtitle = computed(() => route.meta.subtitle || "")
   .footer {
     font-size: 12px;
   }
+}
+
+/* DARK MODE */
+:global(html.dark-mode) .layout-wrapper {
+  background: #0b1220;
+}
+
+:global(html.dark-mode) .main-container {
+  background: #0b1220;
+}
+
+:global(html.dark-mode) .content-area {
+  background: transparent;
+}
+
+:global(html.dark-mode) .blue-banner {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 16px 35px rgba(37, 99, 235, 0.22);
+}
+
+:global(html.dark-mode) .footer {
+  color: #94a3b8;
+  background: transparent;
+}
+
+:global(html.dark-mode) .overlay {
+  background: rgba(2, 6, 23, 0.65);
 }
 </style>

@@ -225,7 +225,7 @@ const routes = [
         meta: {
           roles: ["Admin", "HR"],
           section: "Pages / Reports",
-          title: "Reports",
+          title: "Report-Dashboard Statistics",
           subtitle: "View reporting and statistics"
         }
       },
@@ -249,17 +249,6 @@ const routes = [
           section: "Pages / OT Approvals",
           title: "HR OT Approvals",
           subtitle: "Approve or reject overtime requests"
-        }
-      },
-      {
-        path: "report-dashboard",
-        name: "ReportDashboard",
-        component: () => import("../views/ReportDashboard.vue"),
-        meta: {
-          roles: ["Admin", "HR"],
-          section: "Pages / Report Dashboard",
-          title: "Report Dashboard",
-          subtitle: "Analyze leave and overtime data"
         }
       },
       {
