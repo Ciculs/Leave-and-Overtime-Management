@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router"
 
 import DashboardLayout from "../layouts/DashboardLayout.vue"
 import Login from "../views/Login.vue"
+import ForgotPassword from "../views/ForgotPassword.vue"
 
 import DashboardAdmin from "../views/DashboardAdmin.vue"
 import DashboardManager from "../views/DashboardManager.vue"
@@ -29,6 +30,11 @@ const routes = [
     path: "/login",
     name: "Login",
     component: Login
+  },
+  {
+    path: "/forgot-password",
+    name: "ForgotPassword",
+    component: ForgotPassword
   },
 
   {

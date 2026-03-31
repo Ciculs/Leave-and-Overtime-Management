@@ -158,6 +158,8 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 // ===============================
 // Build App
 // ===============================

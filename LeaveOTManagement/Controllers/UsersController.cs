@@ -1,15 +1,17 @@
-﻿using LeaveOTManagement.Data;
+﻿using System.Security.Claims;
+using LeaveOTManagement.Data;
+using LeaveOTManagement.DTOs;
 using LeaveOTManagement.Models.DTOs;
 using LeaveOTManagement.Models.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
 
 namespace LeaveOTManagement.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "HR,Admin")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly LeaveOTContext _context;
@@ -20,9 +22,86 @@ namespace LeaveOTManagement.Controllers
         }
 
         // ===============================
+        // GET MY PROFILE
+        // ===============================
+        [HttpGet("me")]
+        public async Task<IActionResult> GetMyProfile()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userIdClaim))
+                return Unauthorized(new { message = "Invalid token" });
+
+            var userId = int.Parse(userIdClaim);
+
+            var user = await _context.Users
+                .Include(u => u.Department)
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.UserId == userId);
+
+            return Ok(new
+            {
+                user.Id,
+                user.EmployeeCode,
+                user.FullName,
+                user.Email,
+                Username = account != null ? account.Username : null,
+                Department = user.Department != null ? user.Department.Name : null,
+                Role = user.Role != null ? user.Role.Name : null,
+                user.IsActive
+            });
+        }
+
+        // ===============================
+        // UPDATE MY PROFILE
+        // ===============================
+        [HttpPut("me")]
+        public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateMyProfileDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userIdClaim))
+                return Unauthorized(new { message = "Invalid token" });
+
+            var userId = int.Parse(userIdClaim);
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            if (string.IsNullOrWhiteSpace(dto.FullName))
+                return BadRequest(new { message = "Full name is required" });
+
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+            {
+                var emailExists = await _context.Users
+                    .AnyAsync(u => u.Email == dto.Email.Trim() && u.Id != userId);
+
+                if (emailExists)
+                    return BadRequest(new { message = "Email already exists" });
+            }
+
+            user.FullName = dto.FullName.Trim();
+            user.Email = dto.Email?.Trim();
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Profile updated successfully",
+                user.FullName,
+                user.Email
+            });
+        }
+
+        // ===============================
         // GET ALL USERS + SEARCH
         // ===============================
         [HttpGet]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> GetUsers(string? search, string? role)
         {
             var query = _context.Users
@@ -65,6 +144,7 @@ namespace LeaveOTManagement.Controllers
         // UPDATE USER
         // ===============================
         [HttpPut("{id}")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto dto)
         {
             var user = await _context.Users.FindAsync(id);
@@ -92,6 +172,7 @@ namespace LeaveOTManagement.Controllers
         // DEACTIVATE USER
         // ===============================
         [HttpPut("{id}/deactivate")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> DeactivateUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
@@ -116,6 +197,7 @@ namespace LeaveOTManagement.Controllers
         // ACTIVATE USER
         // ===============================
         [HttpPut("{id}/activate")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> ActivateUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
@@ -140,6 +222,7 @@ namespace LeaveOTManagement.Controllers
         // GET MANAGERS
         // ===============================
         [HttpGet("managers")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> GetManagers()
         {
             var managers = await _context.Users
@@ -160,6 +243,7 @@ namespace LeaveOTManagement.Controllers
         // GET DEPARTMENTS
         // ===============================
         [HttpGet("departments")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> GetDepartments()
         {
             var departments = await _context.Departments
@@ -177,6 +261,7 @@ namespace LeaveOTManagement.Controllers
         // GET ROLES
         // ===============================
         [HttpGet("roles")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> GetRoles()
         {
             var roles = await _context.Roles
@@ -194,6 +279,7 @@ namespace LeaveOTManagement.Controllers
         // CREATE USER + ACCOUNT
         // ===============================
         [HttpPost]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserDto dto)
         {
             if (!ModelState.IsValid)
@@ -209,21 +295,21 @@ namespace LeaveOTManagement.Controllers
                 .AnyAsync(a => a.Username == dto.Username.Trim());
 
             if (usernameExists)
-                return BadRequest("Username already exists");
+                return BadRequest("Username already exist");
 
             var department = await _context.Departments.FindAsync(dto.DepartmentId);
             if (department == null)
-                return BadRequest("Department không tồn tại");
+                return BadRequest("Department does not exist");
 
             var role = await _context.Roles.FindAsync(dto.RoleId);
             if (role == null)
-                return BadRequest("Role không tồn tại");
+                return BadRequest("Role does not exist");
 
             if (dto.ManagerId.HasValue)
             {
                 var managerExists = await _context.Users.AnyAsync(u => u.Id == dto.ManagerId.Value);
                 if (!managerExists)
-                    return BadRequest("Manager không tồn tại");
+                    return BadRequest("Manager does not exist");
             }
 
             var lastUser = await _context.Users
@@ -291,6 +377,7 @@ namespace LeaveOTManagement.Controllers
         // DELETE USER
         // ===============================
         [HttpDelete("{id}")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
@@ -314,6 +401,7 @@ namespace LeaveOTManagement.Controllers
         // ASSIGN MANAGER
         // ===============================
         [HttpPut("assign-manager")]
+        [Authorize(Roles = "HR,Admin")]
         public async Task<IActionResult> AssignManager(int userId, int managerId)
         {
             var user = await _context.Users.FindAsync(userId);

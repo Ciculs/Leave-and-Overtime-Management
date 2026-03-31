@@ -21,6 +21,8 @@ public partial class LeaveOTContext : DbContext
 
     public DbSet<Account> Accounts { get; set; }
 
+    public DbSet<EmailOtp> EmailOtps { get; set; }
+
     public virtual DbSet<ApprovalWorkflow> ApprovalWorkflows { get; set; }
 
     public virtual DbSet<Attachment> Attachments { get; set; }
