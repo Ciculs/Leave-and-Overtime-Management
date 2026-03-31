@@ -2,7 +2,7 @@
   <div class="login-container">
     <div class="login-left">
       <div class="overlay">
-        <h1>Leave & Overtime Management System</h1>
+        <h1>Leave &amp; Overtime Management System</h1>
         <p>Enterprise Workforce Platform</p>
       </div>
     </div>
@@ -21,7 +21,8 @@
                 <div class="eyelid"></div>
               </div>
             </div>
-            <div class="hands" :class="{ 'hide-eyes': isPasswordFocused }">
+
+            <div class="hands" :class="{ 'hide-eyes': isPasswordFocused || showPassword }">
               <div class="hand left"></div>
               <div class="hand right"></div>
             </div>
@@ -39,28 +40,44 @@
           <input v-model="username" type="text" placeholder="Username" @focus="isPasswordFocused = false"
             @keyup.enter="login" />
 
-          <input v-model="password" type="password" placeholder="Password" @focus="isPasswordFocused = true"
-            @blur="isPasswordFocused = false" @keyup.enter="login" />
+          <div class="password-wrapper">
+            <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="Password"
+              @focus="isPasswordFocused = true" @blur="isPasswordFocused = false" @keyup.enter="login" />
+
+            <button type="button" class="eye-icon" @click="togglePassword"
+              :aria-label="showPassword ? 'Hide password' : 'Show password'">
+              <!-- Mắt mở -->
+              <svg v-if="!showPassword" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M2 12C3.8 8.5 7.4 6 12 6C16.6 6 20.2 8.5 22 12C20.2 15.5 16.6 18 12 18C7.4 18 3.8 15.5 2 12Z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8" />
+              </svg>
+
+              <!-- Mắt nhắm -->
+              <svg v-else viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 15C6 13.2 8.7 12.2 12 12.2C15.3 12.2 18 13.2 20 15" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" />
+                <path d="M6 10L4.5 8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M18 10L19.5 8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M12 9.5V7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M8.5 11L7.5 9.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <path d="M15.5 11L16.5 9.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
 
           <button class="btn-login" @click="login" :disabled="loading">
             {{ loading ? "Logging in..." : "Log In" }}
           </button>
 
           <div class="forgot-wrapper">
-            <a href="#" class="forgot-link">Forgotten password?</a>
+           <a href="#" class="forgot-link" @click.prevent="router.push('/forgot-password')">
+              Forgotten password?
+            </a>
           </div>
 
           <hr />
-
-          <button class="btn-register" type="button">Create New Account</button>
-
           <p v-if="error" class="error">{{ error }}</p>
-        </div>
-
-        <div class="stats">
-          <div>✔ 500+ Employees</div>
-          <div>✔ 1200+ Requests Processed</div>
-          <div>✔ Secure Enterprise Platform</div>
         </div>
       </div>
     </div>
@@ -73,17 +90,18 @@ import { useRouter } from "vue-router"
 import api from "@/services/api"
 
 const router = useRouter()
+
 const username = ref("")
 const password = ref("")
 const error = ref("")
 const loading = ref(false)
 
-// --- AVATAR ANIMATION ---
+const showPassword = ref(false)
 const isPasswordFocused = ref(false)
 const pupilStyle = ref({ transform: "translate(0px, 6px)" })
 
-let mouseX = 0
-let mouseY = 0
+let mouseX = window.innerWidth / 2
+let mouseY = window.innerHeight / 2
 let currentX = 0
 let currentY = 0
 let animationFrameId = null
@@ -94,7 +112,7 @@ const handleMouseMove = (event) => {
 }
 
 const updateEyePosition = () => {
-  if (!isPasswordFocused.value) {
+  if (!isPasswordFocused.value && !showPassword.value) {
     const targetX = (mouseX / window.innerWidth) * 16 - 8
     const targetY = (mouseY / window.innerHeight) * 16 - 8
 
@@ -107,6 +125,10 @@ const updateEyePosition = () => {
   }
 
   animationFrameId = requestAnimationFrame(updateEyePosition)
+}
+
+const togglePassword = () => {
+  showPassword.value = !showPassword.value
 }
 
 onMounted(() => {
@@ -126,8 +148,8 @@ const login = async () => {
   error.value = ""
 
   if (!username.value.trim() || !password.value.trim()) {
-    error.value = "Please enter username and password."
-    window.$toast?.("Please enter username and password.", "warning")
+    error.value = "Please enter your username and password."
+    window.$toast?.("Please enter your username and password.", "warning")
     return
   }
 
@@ -142,7 +164,8 @@ const login = async () => {
     const { token, role, fullName, email, userId } = res.data
 
     localStorage.setItem("token", token)
-    localStorage.setItem("role", role)
+    localStorage.setItem("role", role || "")
+    localStorage.setItem("username", username.value.trim())
     localStorage.setItem("fullName", fullName || "")
     localStorage.setItem("email", email || "")
 
@@ -192,7 +215,6 @@ const login = async () => {
   min-width: 0;
 }
 
-/* LEFT */
 .login-left {
   background-image: url("/images/kkk.png");
   background-size: cover;
@@ -209,7 +231,7 @@ const login = async () => {
   align-items: center;
   padding: clamp(24px, 4vw, 48px);
   text-align: center;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.18);
 }
 
 .overlay h1 {
@@ -224,7 +246,6 @@ const login = async () => {
   font-size: clamp(16px, 1.5vw, 24px);
 }
 
-/* RIGHT */
 .login-right {
   background: #f4f7fb;
   display: flex;
@@ -235,14 +256,13 @@ const login = async () => {
 }
 
 .right-content {
-  width: min(100%, 440px);
+  width: min(100%, 460px);
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 8px 0;
 }
 
-/* AVATAR */
 .avatar-container {
   display: flex;
   justify-content: center;
@@ -332,7 +352,7 @@ const login = async () => {
   bottom: -44px;
   display: flex;
   gap: 24px;
-  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .hand {
@@ -347,7 +367,6 @@ const login = async () => {
   transform: translateY(-58px);
 }
 
-/* CONTENT */
 .welcome h2 {
   margin: 0;
   font-size: clamp(24px, 2vw, 32px);
@@ -365,7 +384,7 @@ const login = async () => {
 .card {
   background: white;
   padding: clamp(22px, 2.2vw, 32px);
-  border-radius: 20px;
+  border-radius: 24px;
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
@@ -375,52 +394,81 @@ const login = async () => {
 .card h3 {
   margin: 0 0 4px;
   font-size: clamp(28px, 2vw, 34px);
-}
-
-.stats {
-  font-size: 13px;
-  color: #555;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-inline: 4px;
+  color: #0f172a;
 }
 
 input {
   width: 100%;
-  padding: 13px 14px;
-  border-radius: 10px;
-  border: 1px solid #ddd;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #dbe1ea;
   font-size: 14px;
   transition: 0.2s;
+  color: #334155;
+  background: #fff;
 }
 
 input:focus {
   outline: none;
-  border-color: #18e3f2;
-  box-shadow: 0 0 0 3px rgba(24, 119, 242, 0.05);
+  border-color: #34bde7;
+  box-shadow: 0 0 0 4px rgba(52, 189, 231, 0.12);
 }
 
-.btn-login,
-.btn-register {
+.password-wrapper {
+  position: relative;
   width: 100%;
-  padding: 13px;
-  border-radius: 10px;
+}
+
+.password-wrapper input {
+  padding-right: 52px;
+}
+
+.eye-icon {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
   border: none;
-  color: white;
-  font-weight: bold;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
   cursor: pointer;
-  transition: 0.3s;
+  border-radius: 50%;
+  transition: 0.2s ease;
+}
+
+.eye-icon:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.eye-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .btn-login {
-  background: #34bde7;
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.25s;
+  background: linear-gradient(135deg, #34bde7, #2ba9d1);
   font-size: 16px;
+  margin-top: 4px;
 }
 
 .btn-login:hover:not(:disabled) {
-  background: #2ba9d1;
   transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(43, 169, 209, 0.24);
 }
 
 .btn-login:disabled {
@@ -438,84 +486,43 @@ input:focus {
   text-decoration: none;
 }
 
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
 hr {
   border: none;
-  border-top: 1px solid #eee;
-  margin: 4px 0;
-}
-
-.btn-register {
-  background: #36eeee;
-  font-size: 15px;
-}
-
-.btn-register:hover {
-  background: #2de2e2;
+  border-top: 1px solid #e5e7eb;
+  margin: 4px 0 0;
 }
 
 .error {
-  color: #ff4d4f;
+  color: #ef4444;
   text-align: center;
   font-size: 13px;
 }
 
-/* LARGE TABLET / SMALL LAPTOP */
-@media (max-width: 1200px) {
-  .right-content {
-    width: min(100%, 400px);
-  }
-
-  .card {
-    padding: 24px;
-  }
-
-  .overlay h1 {
-    font-size: clamp(28px, 3vw, 44px);
-  }
-}
-
-/* TABLET */
 @media (max-width: 992px) {
   .login-container {
     flex-direction: column;
-    overflow-y: auto;
   }
 
   .login-left {
     min-height: 220px;
-    flex: 0 0 220px;
-  }
-
-  .overlay {
-    padding: 24px 20px;
-  }
-
-  .overlay h1 {
-    font-size: 30px;
-    max-width: 500px;
-  }
-
-  .overlay p {
-    font-size: 15px;
   }
 
   .login-right {
-    flex: 1 1 auto;
-    align-items: flex-start;
     padding: 24px 16px 32px;
   }
 
   .right-content {
     width: min(100%, 520px);
-    margin: 0 auto;
   }
 }
 
-/* MOBILE */
 @media (max-width: 768px) {
   .login-left {
     min-height: 160px;
-    flex-basis: 160px;
   }
 
   .overlay h1 {
@@ -526,17 +533,9 @@ hr {
     font-size: 14px;
   }
 
-  .login-right {
-    padding: 18px 14px 24px;
-  }
-
-  .right-content {
-    gap: 14px;
-  }
-
   .avatar-head {
-    width: 74px;
-    height: 74px;
+    width: 76px;
+    height: 76px;
   }
 
   .eye {
@@ -565,35 +564,16 @@ hr {
     transform: translateY(-50px);
   }
 
-  .welcome h2 {
-    font-size: 22px;
-  }
-
-  .welcome p {
-    font-size: 13px;
-  }
-
   .card {
     padding: 20px 16px;
-    border-radius: 16px;
+    border-radius: 18px;
   }
 
   .card h3 {
     font-size: 24px;
   }
-
-  input,
-  .btn-login,
-  .btn-register {
-    font-size: 14px;
-  }
-
-  .stats {
-    font-size: 12px;
-  }
 }
 
-/* SMALL MOBILE */
 @media (max-width: 480px) {
   .login-left {
     display: none;
@@ -610,11 +590,6 @@ hr {
 
   .card {
     padding: 18px 14px;
-  }
-
-  .avatar-head {
-    width: 68px;
-    height: 68px;
   }
 }
 </style>

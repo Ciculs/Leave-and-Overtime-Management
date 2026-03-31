@@ -16,11 +16,11 @@ import { ref } from "vue"
 const toasts = ref([])
 
 const removeToast = (id) => {
-  toasts.value = toasts.value.filter(t => t.id !== id)
+  toasts.value = toasts.value.filter((t) => t.id !== id)
 }
 
 window.$toast = (message, type = "success") => {
-  const id = Date.now()
+  const id = Date.now() + Math.random()
 
   toasts.value.push({
     id,
@@ -29,9 +29,11 @@ window.$toast = (message, type = "success") => {
   })
 
   const duration =
-    type === "error" ? 12000 :
-      type === "warning" ? 10000 :
-        8000
+    type === "error"
+      ? 12000
+      : type === "warning"
+        ? 10000
+        : 8000
 
   setTimeout(() => {
     removeToast(id)
@@ -43,7 +45,21 @@ window.$toast = (message, type = "success") => {
 html,
 body,
 #app {
+  margin: 0;
+  padding: 0;
   min-height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: "Segoe UI", sans-serif;
+  background: #f4f7fb;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 .toast-wrapper {
@@ -54,16 +70,20 @@ body,
   display: flex;
   flex-direction: column;
   gap: 12px;
+  pointer-events: none;
 }
 
 .toast-box {
   min-width: 260px;
+  max-width: 380px;
   padding: 14px 22px;
   color: white;
   font-weight: 600;
   border-radius: 999px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
   cursor: pointer;
+  pointer-events: auto;
+  word-break: break-word;
 }
 
 .toast-box.success {
@@ -91,5 +111,19 @@ body,
 .slide-leave-to {
   opacity: 0;
   transform: translateX(100%);
+}
+
+@media (max-width: 768px) {
+  .toast-wrapper {
+    top: 14px;
+    right: 14px;
+    left: 14px;
+  }
+
+  .toast-box {
+    min-width: unset;
+    width: 100%;
+    border-radius: 16px;
+  }
 }
 </style>

@@ -246,7 +246,7 @@
         <span v-if="!collapsed" class="nav-label">Logout</span>
       </button>
 
-      <div class="user-box">
+    <router-link to="/profile" class="user-box profile-link">
         <div class="user-avatar">
           {{ displayName.charAt(0).toUpperCase() }}
         </div>
@@ -255,7 +255,7 @@
           <div class="user-name">{{ displayName }}</div>
           <div class="user-role">{{ displayRole }}</div>
         </div>
-      </div>
+      </router-link>
     </div>
   </aside>
 </template>
@@ -721,6 +721,35 @@ const logout = () => {
 .user-role {
   font-size: 12px;
   color: #94a3b8;
+}
+
+.user-box {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.user-box:hover {
+  background: #f4f7fe;
+  border-radius: 12px;
+}
+
+.sidebar.dark .user-box:hover {
+  background: #111;
+}
+
+.profile-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.profile-link:hover {
+  background: #f4f7fe;
+  border-radius: 12px;
+}
+
+.sidebar.dark .profile-link:hover {
+  background: #111;
 }
 
 /* COLLAPSED BOTTOM */

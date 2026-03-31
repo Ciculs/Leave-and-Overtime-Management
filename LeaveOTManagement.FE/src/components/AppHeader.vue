@@ -75,25 +75,24 @@
 import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
+defineEmits(["toggle-sidebar"])
+
 const router = useRouter()
 const route = useRoute()
 
-const rawName =
-  localStorage.getItem("fullName") ||
-  localStorage.getItem("username") ||
-  "User"
+const username = localStorage.getItem("username") || "user"
+const fullName = localStorage.getItem("fullName") || ""
+const role = localStorage.getItem("role") || "Employee"
 
-const rawRole = localStorage.getItem("role") || "Employee"
-
-const displayName = computed(() => rawName)
+const displayName = computed(() => fullName || username)
 
 const displayRole = computed(() => {
-  if (rawRole === "HR" || rawRole === "Admin") return "HR ADMIN"
-  return rawRole
+  if (role === "HR" || role === "Admin") return "HR ADMIN"
+  return role
 })
 
-const pageTitle = computed(() => route.meta.title || "Dashboard")
-const pageSection = computed(() => route.meta.section || "Pages")
+const pageTitle = computed(() => route.meta.title || "Main Dashboard")
+const pageSection = computed(() => route.meta.section || "Pages / Dashboard")
 
 const isDark = ref(localStorage.getItem("theme") === "dark")
 
@@ -124,12 +123,19 @@ const logout = () => {
 
 <style scoped>
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   padding: 24px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 18px;
   flex-wrap: wrap;
+  background: rgba(244, 247, 254, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .header-left {
@@ -345,12 +351,17 @@ const logout = () => {
 }
 
 /* DARK HEADER MODE */
+.header.dark {
+  background: rgba(10, 10, 10, 0.92);
+  border-bottom: 1px solid rgba(40, 40, 40, 0.9);
+}
+
 .header.dark .path {
-  color: #64748b;
+  color: #9ca3af;
 }
 
 .header.dark .current {
-  color: #111827;
+  color: #ffffff;
 }
 
 .header.dark .menu-btn {
@@ -414,6 +425,7 @@ const logout = () => {
     border-radius: 20px;
     padding: 10px;
     gap: 10px;
+    flex-wrap: wrap;
   }
 
   .theme-switch {
