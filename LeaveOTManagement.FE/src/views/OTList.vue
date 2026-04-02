@@ -11,6 +11,12 @@
     </header>
 
     <main v-if="!showRegister">
+      <div class="tabs-header mb-4 mt-2">
+        <button class="tab-btn" :class="{active: activeTab === 'all'}" @click="activeTab = 'all'">All Requests</button>
+        <button class="tab-btn" :class="{active: activeTab === 'active'}" @click="activeTab = 'active'">Active</button>
+        <button class="tab-btn" :class="{active: activeTab === 'history'}" @click="activeTab = 'history'">History</button>
+      </div>
+
       <div class="filter-bar d-flex justify-content-between align-items-center mb-4">
 
   <div class="d-flex gap-2">
@@ -144,6 +150,13 @@
                   {{ selectedOT.reason }}
                 </div>
               </div>
+
+              <div v-if="selectedOT.status === 'Rejected' && selectedOT.rejectReason" class="reason-full mt-4">
+                <label class="fw-bold mb-2 d-block text-danger">Reject Reason</label>
+                <div class="reason-text-area" style="border-left: 4px solid #ef4444; background: #fff5f5;">
+                  {{ selectedOT.rejectReason }}
+                </div>
+              </div>
             </div>
 
             <div class="modal-footer-custom">
@@ -176,6 +189,7 @@ const route = useRoute()
 
 const showRegister = ref(false)
 const ots = ref([])
+const activeTab = ref("all")
 const selectedOT = ref(null)
 const selectedStatus = ref("")
 const sortOrder = ref("desc")
@@ -213,6 +227,13 @@ function changePage(page) {
 /* FILTER */
 const filteredOT = computed(() => {
   let data = [...ots.value]
+
+  /* FILTER TAB */
+  if (activeTab.value === 'active') {
+    data = data.filter(x => x.status === 'Pending' || x.status === 'ManagerApproved')
+  } else if (activeTab.value === 'history') {
+    data = data.filter(x => x.status === 'Approved' || x.status === 'Rejected' || x.status === 'HRApproved')
+  }
 
   /* FILTER STATUS */
   if (selectedStatus.value) {
@@ -299,6 +320,36 @@ const handleSuccess = async () => {
   padding: 2rem;
   background: #f8f9fc;
   min-height: 100vh;
+}
+
+/* TABS */
+.tabs-header {
+  display: flex;
+  gap: 12px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tab-btn.active {
+  background: #e0e7ff;
+  color: #4338ca;
 }
 
 /* HEADER */

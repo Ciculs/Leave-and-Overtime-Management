@@ -19,6 +19,12 @@
             </div>
         </header>
 
+        <!-- TABS -->
+        <div class="tabs-header mb-4 mt-2">
+            <button class="tab-btn" :class="{active: activeTab === 'pending'}" @click="activeTab = 'pending'">Pending Approvals</button>
+            <button class="tab-btn" :class="{active: activeTab === 'history'}" @click="activeTab = 'history'">Approval History</button>
+        </div>
+
         <!-- FILTER -->
         <div class="filter-bar">
             <input v-model="search" placeholder="Search employee or reason..." class="search-input" />
@@ -184,7 +190,11 @@ import { ref, computed, onMounted, watch } from "vue"
 import api from "@/services/api"
 
 /* DATA */
-const ots = ref([])
+const pendingOts = ref([])
+const historyOts = ref([])
+const activeTab = ref("pending")
+const ots = computed(() => activeTab.value === "pending" ? pendingOts.value : historyOts.value)
+
 const selectedOT = ref(null)
 
 const search = ref("")
@@ -204,8 +214,16 @@ const itemsPerPage = 6
 onMounted(loadOT)
 
 async function loadOT() {
-    const res = await api.get("/OT/pending")
-    ots.value = res.data || []
+    try {
+        const [resP, resH] = await Promise.all([
+            api.get("/OT/pending"),
+            api.get("/OT/manager-history")
+        ])
+        pendingOts.value = resP.data || []
+        historyOts.value = resH.data || []
+    } catch (e) {
+        console.error("Failed to load OT for manager", e)
+    }
 }
 
 /* FILTER + SEARCH + SORT */
@@ -260,7 +278,7 @@ function changePage(page) {
 }
 
 /* RESET PAGE */
-watch([search, selectedStatus, sortOrder], () => {
+watch([search, selectedStatus, sortOrder, activeTab], () => {
     currentPage.value = 1
 })
 
@@ -320,11 +338,8 @@ function calculateHours(d) {
 }
 
 /* STATS */
-const totalOT = computed(() => ots.value.length)
-
-const pendingOT = computed(() => {
-    return ots.value.filter(x => x.userApprovalStatus === "Pending" && x.status === "Pending").length
-})
+const totalOT = computed(() => pendingOts.value.length + historyOts.value.length)
+const pendingOT = computed(() => pendingOts.value.length)
 </script>
 
 <style scoped>
@@ -397,6 +412,37 @@ const pendingOT = computed(() => {
     border-radius: 16px;
     border: 1px solid #e5e7eb;
     background: white;
+}
+
+/* TABS */
+.tabs-header {
+    display: flex;
+    gap: 12px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    color: #64748b;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.tab-btn.active {
+    background: #e0e7ff;
+    color: #4338ca;
 }
 
 /* GRID */
