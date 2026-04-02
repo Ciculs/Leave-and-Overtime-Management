@@ -10,6 +10,7 @@ namespace LeaveOTManagement.DTOs.OT
         public string EmployeeName { get; set; } = string.Empty;
         public string UserApprovalStatus { get; set; } = string.Empty;
         public int CurrentApprovalLevel { get; set; }
+        public string RejectReason { get; set; } = string.Empty;
         public List<OtDetailDto> Details { get; set; } = new();
     }
 }

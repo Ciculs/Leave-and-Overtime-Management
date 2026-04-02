@@ -1,4 +1,4 @@
-﻿using LeaveOTManagement.DTOs.Leave;
+using LeaveOTManagement.DTOs.Leave;
 using LeaveOTManagement.DTOs.OT;
 
 namespace LeaveOTManagement.Services.Interfaces
@@ -14,5 +14,6 @@ namespace LeaveOTManagement.Services.Interfaces
         Task HrApproveOtAsync(long requestId, int approverId);
         Task RejectOtAsync(long requestId, int approverId, string reason);
         Task<IEnumerable<TeamOtCalendarDto>> GetTeamOtCalendarAsync(int managerUserId, int year, int month);
+        Task<List<OtResponseDto>> GetApprovalHistoryAsync(int approverId);
     }
 }

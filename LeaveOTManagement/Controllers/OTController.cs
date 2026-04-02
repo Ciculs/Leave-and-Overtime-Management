@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using LeaveOTManagement.DTOs.OT;
 using LeaveOTManagement.Services;
 using LeaveOTManagement.Services.Interfaces;
@@ -175,6 +175,17 @@ namespace LeaveOTManagement.Controllers
                 return Unauthorized();
 
             var result = await _service.GetPendingApprovalsAsync(userId);
+            return Ok(result);
+        }
+
+        [HttpGet("manager-history")]
+        [HttpGet("hr-history")]
+        public async Task<IActionResult> GetApprovalHistory()
+        {
+            if (!TryGetUserId(out int userId))
+                return Unauthorized();
+
+            var result = await _service.GetApprovalHistoryAsync(userId);
             return Ok(result);
         }
 

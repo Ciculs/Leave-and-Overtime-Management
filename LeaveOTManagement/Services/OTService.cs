@@ -60,7 +60,7 @@ namespace LeaveOTManagement.Services
 
                 await _context.SaveChangesAsync();
 
-                await CreateApprovalWorkflow("OT", ot.Id);
+                await CreateApprovalWorkflow("OT", ot.Id, userId);
 
                 await transaction.CommitAsync();
                 return ot.Id;
@@ -141,14 +141,27 @@ namespace LeaveOTManagement.Services
                     x.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
             }
 
-            return await query
+            var requests = await query
                 .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            var requestIds = requests.Select(x => x.Id).ToList();
+            var rejectedApprovals = await _context.Approvals
+                .Where(a => requestIds.Contains(a.RequestId) && a.RequestType == "OT" && a.Status == "Rejected")
+                .ToListAsync();
+
+            return requests
                 .Select(x => new OtResponseDto
                 {
                     Id = x.Id,
                     Reason = x.Reason ?? "",
                     Status = x.Status ?? "",
                     CreatedAt = x.CreatedAt ?? DateTime.MinValue,
+                    RejectReason = rejectedApprovals
+                        .Where(a => a.RequestId == x.Id)
+                        .OrderByDescending(a => a.ActionDate)
+                        .Select(a => a.Comment)
+                        .FirstOrDefault() ?? "",
                     Details = x.Otdetails.Select(d => new OtDetailDto
                     {
                         WorkDate = d.WorkDate,
@@ -157,7 +170,7 @@ namespace LeaveOTManagement.Services
                         Hours = d.Hours
                     }).ToList()
                 })
-                .ToListAsync();
+                .ToList();
         }
 
         public async Task<OtResponseDto?> GetOtByIdAsync(long id, int userId)
@@ -169,12 +182,18 @@ namespace LeaveOTManagement.Services
             if (ot == null)
                 return null;
 
+            var rejectApproval = await _context.Approvals
+                .Where(a => a.RequestId == id && a.RequestType == "OT" && a.Status == "Rejected")
+                .OrderByDescending(a => a.ActionDate)
+                .FirstOrDefaultAsync();
+
             return new OtResponseDto
             {
                 Id = ot.Id,
                 Reason = ot.Reason ?? "",
                 Status = ot.Status ?? "",
                 CreatedAt = ot.CreatedAt ?? DateTime.MinValue,
+                RejectReason = rejectApproval?.Comment ?? "",
                 Details = ot.Otdetails.Select(d => new OtDetailDto
                 {
                     WorkDate = d.WorkDate,
@@ -394,8 +413,63 @@ namespace LeaveOTManagement.Services
             return result;
         }
 
-        private async Task CreateApprovalWorkflow(string requestType, long requestId)
+        public async Task<List<OtResponseDto>> GetApprovalHistoryAsync(int approverId)
         {
+            var historyApprovals = await _context.Approvals
+                .Where(a => a.ApproverId == approverId
+                            && a.RequestType == "OT"
+                            && (a.Status == "Approved" || a.Status == "Rejected"))
+                .ToListAsync();
+
+            if (!historyApprovals.Any())
+                return new List<OtResponseDto>();
+
+            var requestIds = historyApprovals
+                .Select(a => a.RequestId)
+                .Distinct()
+                .ToList();
+
+            var requests = await _context.Otrequests
+                .Include(x => x.Otdetails)
+                .Include(x => x.User)
+                .Where(x => requestIds.Contains(x.Id))
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            return requests
+                .Select(x =>
+                {
+                    var myApproval = historyApprovals.OrderByDescending(a => a.ActionDate).FirstOrDefault(a => a.RequestId == x.Id);
+
+                    return new OtResponseDto
+                    {
+                        Id = x.Id,
+                        Reason = x.Reason ?? "",
+                        Status = x.Status ?? "",
+                        CreatedAt = x.CreatedAt ?? DateTime.MinValue,
+                        EmployeeName = x.User?.FullName ?? "Unknown",
+                        UserApprovalStatus = myApproval?.Status ?? "Unknown",
+                        CurrentApprovalLevel = x.CurrentApprovalLevel ?? 1,
+                        RejectReason = myApproval?.Comment ?? string.Empty,
+                        Details = x.Otdetails.Select(d => new OtDetailDto
+                        {
+                            WorkDate = d.WorkDate,
+                            FromTime = d.FromTime,
+                            ToTime = d.ToTime,
+                            Hours = d.Hours
+                        }).ToList()
+                    };
+                })
+                .ToList();
+        }
+
+        private async Task CreateApprovalWorkflow(string requestType, long requestId, int requesterId)
+        {
+            var requester = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == requesterId);
+            bool isManager = requester?.Role?.Name == "Manager";
+
             var workflows = await _context.ApprovalWorkflows
                 .Where(x => x.RequestType == requestType)
                 .OrderBy(x => x.Level)
@@ -409,14 +483,34 @@ namespace LeaveOTManagement.Services
 
                 foreach (var approver in approvers)
                 {
+                    string initialStatus = "Pending";
+                    DateTime? initialActionDate = null;
+
+                    if (isManager && wf.Level == 1)
+                    {
+                        initialStatus = "Approved";
+                        initialActionDate = DateTime.Now;
+                    }
+
                     _context.Approvals.Add(new Approval
                     {
                         RequestId = requestId,
                         RequestType = requestType,
                         ApproverId = approver.Id,
                         ApprovalLevel = wf.Level,
-                        Status = "Pending"
+                        Status = initialStatus,
+                        ActionDate = initialActionDate
                     });
+                }
+            }
+
+            if (isManager)
+            {
+                var ot = await _context.Otrequests.FindAsync(requestId);
+                if (ot != null)
+                {
+                    ot.CurrentApprovalLevel = 2;
+                    ot.Status = "ManagerApproved";
                 }
             }
 

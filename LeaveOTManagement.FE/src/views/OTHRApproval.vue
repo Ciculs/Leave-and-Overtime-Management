@@ -10,25 +10,30 @@
     </header>
 
     <main>
+      <div class="tabs-header mb-4 mt-2">
+        <button class="tab-btn" :class="{active: activeTab === 'pending'}" @click="activeTab = 'pending'">Pending Approvals</button>
+        <button class="tab-btn" :class="{active: activeTab === 'history'}" @click="activeTab = 'history'">Approval History</button>
+      </div>
+
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-number">{{ ots.length }}</div>
+          <div class="stat-number">{{ pendingOts.length + historyOts.length }}</div>
           <div class="stat-label">Total Requests</div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-number">{{ pendingCount }}</div>
+          <div class="stat-number">{{ pendingOts.length }}</div>
           <div class="stat-label">Pending</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-number">{{ approvedCount }}</div>
-          <div class="stat-label">Approved</div>
+          <div class="stat-label">Approved By Me</div>
         </div>
 
         <div class="stat-card">
           <div class="stat-number">{{ rejectedCount }}</div>
-          <div class="stat-label">Rejected</div>
+          <div class="stat-label">Rejected By Me</div>
         </div>
       </div>
 
@@ -129,6 +134,11 @@
                 <label>Reason</label>
                 <p>{{ selectedOT.reason }}</p>
               </div>
+
+              <div v-if="selectedOT.userApprovalStatus === 'Rejected' && selectedOT.rejectReason" class="info-card full" style="border-left: 4px solid #ef4444;">
+                <label style="color: #ef4444">Reject Reason</label>
+                <p>{{ selectedOT.rejectReason }}</p>
+              </div>
             </div>
 
             <div class="timeline">
@@ -186,7 +196,12 @@
 import { ref, computed, onMounted, watch } from "vue"
 import api from "@/services/api"
 
-const ots = ref([])
+const pendingOts = ref([])
+const historyOts = ref([])
+const activeTab = ref("pending")
+
+const ots = computed(() => activeTab.value === "pending" ? pendingOts.value : historyOts.value)
+
 const selectedOT = ref(null)
 const selectedStatus = ref("")
 
@@ -200,27 +215,27 @@ const itemsPerPage = 6
 
 const loading = ref(false)
 
-const pendingCount = computed(() =>
-  ots.value.filter(x => x.userApprovalStatus === "Pending" && x.status === "ManagerApproved").length
-)
-
 const approvedCount = computed(() =>
-  ots.value.filter(x => x.status === "Approved" || x.userApprovalStatus === "Approved").length
+  historyOts.value.filter(x => x.userApprovalStatus === "Approved").length
 )
 
 const rejectedCount = computed(() =>
-  ots.value.filter(x => x.status === "Rejected" || x.userApprovalStatus === "Rejected").length
+  historyOts.value.filter(x => x.userApprovalStatus === "Rejected").length
 )
 
-onMounted(loadOT)
+onMounted(loadData)
 
-async function loadOT() {
+async function loadData() {
   try {
     loading.value = true
-    const res = await api.get("/OT/hr-pending")
-    ots.value = res.data || []
+    const [resP, resH] = await Promise.all([
+      api.get("/OT/hr-pending"),
+      api.get("/OT/hr-history")
+    ])
+    pendingOts.value = resP.data || []
+    historyOts.value = resH.data || []
   } catch (err) {
-    console.error("Load HR OT failed", err)
+    console.error("Load HR OT data failed", err)
   } finally {
     loading.value = false
   }
@@ -263,7 +278,7 @@ const filteredOT = computed(() => {
   return data
 })
 
-watch([selectedStatus, sortType], () => {
+watch([selectedStatus, sortType, activeTab], () => {
   currentPage.value = 1
 })
 
@@ -296,7 +311,7 @@ const openDetail = (ot) => {
 async function hrApprove(id) {
   try {
     await api.put(`/OT/${id}/hr-approve`)
-    await loadOT()
+    await loadData()
     selectedOT.value = null
     alert("Approved successfully")
   } catch (err) {
@@ -330,7 +345,7 @@ async function confirmReject() {
       reason: rejectReason.value
     })
 
-    await loadOT()
+    await loadData()
 
     showRejectModal.value = false
     selectedOT.value = null
@@ -390,6 +405,35 @@ const calculateHours = (detail) => {
 
 .page-header {
   margin-bottom: 30px;
+}
+
+.tabs-header {
+  display: flex;
+  gap: 12px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 8px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tab-btn.active {
+  background: #e0e7ff;
+  color: #4338ca;
 }
 
 .filter-bar {
