@@ -1,14 +1,9 @@
 <template>
   <router-view />
 
-  <!-- GLOBAL TOAST -->
   <div class="toast-wrapper">
     <transition-group name="slide">
-      <div
-        v-for="toast in toasts"
-        :key="toast.id"
-        :class="['toast-box', toast.type]"
-      >
+      <div v-for="toast in toasts" :key="toast.id" :class="['toast-box', toast.type]" @click="removeToast(toast.id)">
         {{ toast.message }}
       </div>
     </transition-group>
@@ -20,8 +15,12 @@ import { ref } from "vue"
 
 const toasts = ref([])
 
+const removeToast = (id) => {
+  toasts.value = toasts.value.filter((t) => t.id !== id)
+}
+
 window.$toast = (message, type = "success") => {
-  const id = Date.now()
+  const id = Date.now() + Math.random()
 
   toasts.value.push({
     id,
@@ -29,19 +28,40 @@ window.$toast = (message, type = "success") => {
     type
   })
 
-  /* THỜI GIAN HIỂN THỊ THEO LOẠI TOAST */
   const duration =
-    type === "error" ? 12000 :
-    type === "warning" ? 10000 :
-    8000   // success
+    type === "error"
+      ? 12000
+      : type === "warning"
+        ? 10000
+        : 8000
 
   setTimeout(() => {
-    toasts.value = toasts.value.filter(t => t.id !== id)
+    removeToast(id)
   }, duration)
 }
 </script>
 
 <style>
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: "Segoe UI", sans-serif;
+  background: #f4f7fb;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 .toast-wrapper {
   position: fixed;
   top: 20px;
@@ -50,33 +70,33 @@ window.$toast = (message, type = "success") => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  pointer-events: none;
 }
 
 .toast-box {
   min-width: 260px;
+  max-width: 380px;
   padding: 14px 22px;
   color: white;
   font-weight: 600;
   border-radius: 999px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  pointer-events: auto;
+  word-break: break-word;
 }
 
-/* SUCCESS */
 .toast-box.success {
-  background: linear-gradient(135deg,#22c55e,#16a34a);
+  background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
-/* ERROR */
 .toast-box.error {
-  background: linear-gradient(135deg,#ef4444,#dc2626);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
-/* WARNING */
 .toast-box.warning {
-  background: linear-gradient(135deg,#f59e0b,#d97706);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
 }
-
-/* SLIDE ANIMATION */
 
 .slide-enter-active,
 .slide-leave-active {
@@ -91,5 +111,19 @@ window.$toast = (message, type = "success") => {
 .slide-leave-to {
   opacity: 0;
   transform: translateX(100%);
+}
+
+@media (max-width: 768px) {
+  .toast-wrapper {
+    top: 14px;
+    right: 14px;
+    left: 14px;
+  }
+
+  .toast-box {
+    min-width: unset;
+    width: 100%;
+    border-radius: 16px;
+  }
 }
 </style>

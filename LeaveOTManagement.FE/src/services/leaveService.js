@@ -1,21 +1,21 @@
-import api from "./api";
+import api from "./api"
 
-export const getLeaves = () => {
-  return api.get("/leave");
-};
+// GET MY LEAVE REQUESTS
+export const getLeaveList = () => {
+  return api.get("/leave/my")
+}
 
-export const getLeaveBalance = (userId) => {
-  return api.get(`/leave/balance/${userId}`);
-};
+// GET MY LEAVE BALANCE
+export const getLeaveBalance = () => {
+  return api.get("/leave/balances")
+}
 
+// CREATE LEAVE REQUEST
 export const createLeaveRequest = (payload) => {
-  return api.post("/leave/request", payload);
-};
+  return api.post("/leave", payload)
+}
 
-export const getLeaveList = (userId) => {
-  return api.get(`/leave/list/${userId}`);
-};
-
-export const getTeamCalendar = () => {
-  return api.get("/leave/team-calendar")
+// TEAM CALENDAR
+export const getTeamCalendar = (year, month) => {
+  return api.get(`/leave/team-calendar?year=${year}&month=${month}`)
 }

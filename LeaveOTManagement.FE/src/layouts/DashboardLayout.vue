@@ -1,25 +1,16 @@
 <template>
   <div class="layout-wrapper">
+    <AppSidebar :class="{ open: isSidebarOpen }" @click="closeSidebar" />
 
-    <!-- Sidebar -->
-    <AppSidebar
-      :class="{ open: isSidebarOpen }"
-      @click="closeSidebar"
-    />
-
-    <!-- Overlay -->
-    <div
-      v-if="isSidebarOpen"
-      class="overlay"
-      @click="closeSidebar"
-    ></div>
+    <div v-if="isSidebarOpen" class="overlay" @click="closeSidebar"></div>
 
     <div class="main-container">
       <AppHeader @toggle-sidebar="toggleSidebar" />
 
       <main class="content-area">
-        <div class="blue-banner">
-          <h3>Leave & Overtime Management Platform</h3>
+        <div v-if="pageTitle || pageSubtitle" class="blue-banner">
+          <h2>{{ pageTitle }}</h2>
+          <p v-if="pageSubtitle">{{ pageSubtitle }}</p>
         </div>
 
         <router-view />
@@ -29,15 +20,16 @@
         © 2026 LeaveOT System. All rights reserved.
       </footer>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, computed } from "vue"
+import { useRoute } from "vue-router"
 import AppSidebar from "@/components/AppSidebar.vue"
 import AppHeader from "@/components/AppHeader.vue"
 
+const route = useRoute()
 const isSidebarOpen = ref(false)
 
 const toggleSidebar = () => {
@@ -47,51 +39,64 @@ const toggleSidebar = () => {
 const closeSidebar = () => {
   isSidebarOpen.value = false
 }
+
+const pageTitle = computed(() => route.meta.title || "Dashboard")
+const pageSubtitle = computed(() => route.meta.subtitle || "")
 </script>
 
 <style scoped>
-
-/* BASE LAYOUT */
-
 .layout-wrapper {
   min-height: 100vh;
   background: #f4f7fe;
+  transition: background 0.3s ease;
 }
 
-/* MAIN */
 .main-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: background 0.3s ease;
 }
 
-/* CONTENT */
 .content-area {
   padding: 30px 40px;
   flex: 1;
+  background: transparent;
+  transition: background 0.3s ease;
 }
 
-/* BLUE BANNER */
 .blue-banner {
   background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
   padding: 25px;
   border-radius: 20px;
   color: white;
   margin-bottom: 30px;
+  box-shadow: 0 16px 35px rgba(49, 130, 206, 0.18);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* FOOTER */
+.blue-banner h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.blue-banner p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
 .footer {
   padding: 20px;
   text-align: center;
   color: #a3aed0;
   font-size: 14px;
+  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
 }
 
-/* DESKTOP (>=1024px) */
-
+/* DESKTOP */
 @media (min-width: 1024px) {
-
   .sidebar {
     position: fixed;
     top: 0;
@@ -101,14 +106,12 @@ const closeSidebar = () => {
   }
 
   .main-container {
-    margin-left: 280px;   
+    margin-left: 280px;
   }
 }
 
-/* MOBILE (<1024px) */
-
+/* TABLET / MOBILE SIDEBAR */
 @media (max-width: 1023px) {
-
   .layout-wrapper {
     position: relative;
   }
@@ -134,26 +137,33 @@ const closeSidebar = () => {
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
     z-index: 900;
   }
 
   .content-area {
-    padding: 0px 20px;
+    padding: 0 20px;
   }
 
   .blue-banner {
-    padding: 30px;
+    padding: 24px;
     border-radius: 15px;
+  }
+
+  .blue-banner h2 {
+    font-size: 22px;
   }
 }
 
-/* SMALL MOBILE (<768px) */
-
 @media (max-width: 768px) {
-
   .content-area {
     padding: 20px 15px;
+  }
+
+  .blue-banner {
+    padding: 20px;
+    margin-bottom: 20px;
   }
 
   .blue-banner h2 {
@@ -169,4 +179,30 @@ const closeSidebar = () => {
   }
 }
 
+/* DARK MODE */
+:global(html.dark-mode) .layout-wrapper {
+  background: #0b1220;
+}
+
+:global(html.dark-mode) .main-container {
+  background: #0b1220;
+}
+
+:global(html.dark-mode) .content-area {
+  background: transparent;
+}
+
+:global(html.dark-mode) .blue-banner {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 16px 35px rgba(37, 99, 235, 0.22);
+}
+
+:global(html.dark-mode) .footer {
+  color: #94a3b8;
+  background: transparent;
+}
+
+:global(html.dark-mode) .overlay {
+  background: rgba(2, 6, 23, 0.65);
+}
 </style>

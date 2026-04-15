@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using LeaveOTManagement.Models.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +21,8 @@ public partial class LeaveOTContext : DbContext
 
     public DbSet<Account> Accounts { get; set; }
 
+    public DbSet<EmailOtp> EmailOtps { get; set; }
+
     public virtual DbSet<ApprovalWorkflow> ApprovalWorkflows { get; set; }
 
     public virtual DbSet<Attachment> Attachments { get; set; }
@@ -32,7 +34,7 @@ public partial class LeaveOTContext : DbContext
     public virtual DbSet<Holiday> Holidays { get; set; }
 
     public virtual DbSet<LeaveBalance> LeaveBalances { get; set; }
-
+    public DbSet<PayrollLog> PayrollLogs { get; set; }
     public virtual DbSet<LeaveRequest> LeaveRequests { get; set; }
 
     public virtual DbSet<LeaveType> LeaveTypes { get; set; }
@@ -278,6 +280,23 @@ public partial class LeaveOTContext : DbContext
                 .HasForeignKey(d => d.RoleId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Users__RoleId__44FF419A");
+        });
+
+        modelBuilder.Entity<PayrollLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("PayrollLogs");
+
+            entity.Property(e => e.Hours).HasColumnType("decimal(5, 2)");
+            entity.Property(e => e.RateMultiplier).HasColumnType("decimal(3, 2)");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.Otrequest).WithMany()
+                .HasForeignKey(d => d.OTRequestId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);
