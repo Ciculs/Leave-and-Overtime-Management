@@ -96,6 +96,16 @@
           <span v-if="!collapsed" class="nav-label">My Leave Requests</span>
         </router-link>
 
+        <router-link to="/my-ot" class="nav-item" active-class="router-link-active">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+              <path d="M12 7V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span v-if="!collapsed" class="nav-label">My OT Requests</span>
+        </router-link>
+
         <router-link to="/team-approvals" class="nav-item" active-class="router-link-active">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none">
